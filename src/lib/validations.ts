@@ -8,9 +8,8 @@ export const productSchema = z.object({
     categoryId: z.string().min(1, "Category is required"),
     image: z.string().optional(),
     description: z.string().optional(),
-    brand: z.string().optional(),
-    barcodeType: z.string().default('CODE128'),
-    unit: z.string().default('Piece'),
+    brandId: z.string().optional().nullable(),
+    unitId: z.string().optional().nullable(),
     alertQuantity: z.number().int().default(5),
     manageStock: z.boolean().default(true),
     brochureUrl: z.string().optional()

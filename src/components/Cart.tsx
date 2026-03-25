@@ -82,7 +82,7 @@ export default function Cart() {
                                                         <Plus className="w-3 h-3" />
                                                     </button>
                                                 </div>
-                                                <span className="text-lg font-bold text-gray-900 tracking-tighter italic font-mono">${(item.price * item.quantity).toFixed(2)}</span>
+                                                <span className="text-lg font-bold text-gray-900 tracking-tighter italic font-mono">₹{(item.price * item.quantity).toFixed(2)}</span>
                                             </div>
                                         </div>
                                     </div>
@@ -96,15 +96,15 @@ export default function Cart() {
                                 <div className="space-y-4">
                                     <div className="flex justify-between items-center text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">
                                         <span>Subtotal Ledger</span>
-                                        <span className="text-slate-900">${totalAmount.toFixed(2)}</span>
+                                        <span className="text-slate-900">₹{totalAmount.toFixed(2)}</span>
                                     </div>
                                     <div className="flex justify-between items-center text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">
                                         <span>Taxation (0.00%)</span>
-                                        <span className="text-slate-900">$0.00</span>
+                                        <span className="text-slate-900">₹0.00</span>
                                     </div>
                                     <div className="flex justify-between items-center pt-4 border-t border-gray-100">
                                         <span className="text-xs font-black text-slate-950 uppercase tracking-[0.2em] italic">Total Acquisition Cost</span>
-                                        <span className="text-3xl font-black text-emerald-600 italic tracking-tighter font-mono">${totalAmount.toFixed(2)}</span>
+                                        <span className="text-3xl font-black text-emerald-600 italic tracking-tighter font-mono">₹{totalAmount.toFixed(2)}</span>
                                     </div>
                                 </div>
                                 

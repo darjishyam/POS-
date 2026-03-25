@@ -16,7 +16,7 @@ import {
     Navigation,
     ArrowRight,
     Loader2,
-    DollarSign,
+    IndianRupee,
     Package
 } from 'lucide-react'
 import { toast, Toaster } from 'react-hot-toast'

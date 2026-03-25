@@ -9,36 +9,44 @@ import {
     Calendar, 
     Tag, 
     FileText, 
-    DollarSign,
+    IndianRupee,
     ArrowDownRight,
     TrendingDown,
     Calculator,
     MoreHorizontal
 } from 'lucide-react'
 
+interface Category {
+    id: string
+    name: string
+}
+
 interface Expense {
     id: string
     amount: number
     description: string
-    category: string
+    categoryId: string
     date: string
+    category: Category | null
 }
-
-const CATEGORIES = ['Rent', 'Utilities', 'Salary', 'Marketing', 'Supplies', 'Maintenance', 'Other']
 
 export default function ExpensesClient() {
     const [expenses, setExpenses] = useState<Expense[]>([])
+    const [categories, setCategories] = useState<Category[]>([])
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [isLoading, setIsLoading] = useState(true)
     const [formData, setFormData] = useState({
         amount: '',
         description: '',
-        category: 'Other',
+        categoryId: '',
         date: format(new Date(), 'yyyy-MM-dd')
     })
 
     useEffect(() => {
-        fetchExpenses()
+        const loadInitialData = async () => {
+            await Promise.all([fetchExpenses(), fetchCategories()])
+        }
+        loadInitialData()
     }, [])
 
     const fetchExpenses = async () => {
@@ -50,6 +58,19 @@ export default function ExpensesClient() {
             toast.error('Failed to load expenses')
         } finally {
             setIsLoading(false)
+        }
+    }
+
+    const fetchCategories = async () => {
+        try {
+            const res = await fetch('/api/expenses/categories')
+            const data = await res.json()
+            setCategories(data)
+            if (data.length > 0 && !formData.categoryId) {
+                setFormData(prev => ({ ...prev, categoryId: data[0].id }))
+            }
+        } catch (error) {
+            console.error('Failed to fetch categories')
         }
     }
 
@@ -65,7 +86,12 @@ export default function ExpensesClient() {
             if (res.ok) {
                 toast.success('Expense recorded successfully', { id: loadingToast })
                 setIsModalOpen(false)
-                setFormData({ amount: '', description: '', category: 'Other', date: format(new Date(), 'yyyy-MM-dd') })
+                setFormData({ 
+                    amount: '', 
+                    description: '', 
+                    categoryId: categories[0]?.id || '', 
+                    date: format(new Date(), 'yyyy-MM-dd') 
+                })
                 fetchExpenses()
             }
         } catch (error) {
@@ -95,8 +121,7 @@ export default function ExpensesClient() {
                     <div className="flex items-center gap-6">
                         <div className="text-right">
                             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Total Periodic Outflow</p>
-                            <p className="text-3xl font-black text-gray-950 italic tracking-tighter">
-                                ${totalExpenses.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                            <p className="text-3xl font-black text-gray-950 italic tracking-tighter">₹{totalExpenses.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                             </p>
                         </div>
                         <button
@@ -150,7 +175,7 @@ export default function ExpensesClient() {
                                         <div className="flex items-center gap-2">
                                             <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
                                             <span className="text-[10px] font-black text-gray-600 uppercase tracking-widest">
-                                                {expense.category}
+                                                {expense.category?.name || 'Uncategorized'}
                                             </span>
                                         </div>
                                     </td>
@@ -160,8 +185,7 @@ export default function ExpensesClient() {
                                     <td className="px-8 py-6 text-right">
                                         <div className="flex items-center justify-end gap-2 group-hover:text-emerald-600 transition-colors">
                                             <ArrowDownRight className="w-4 h-4" />
-                                            <span className="text-xl font-black text-gray-950 tracking-tighter">
-                                                ${expense.amount.toFixed(2)}
+                                            <span className="text-xl font-black text-gray-950 tracking-tighter">₹{expense.amount.toFixed(2)}
                                             </span>
                                         </div>
                                     </td>
@@ -190,7 +214,7 @@ export default function ExpensesClient() {
                             <form onSubmit={handleSubmit} className="space-y-8">
                                 <div className="grid grid-cols-2 gap-8">
                                     <div className="space-y-2">
-                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Asset Value ($)</label>
+                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Asset Value (₹)</label>
                                         <div className="relative">
                                             <input
                                                 type="number" step="0.01" required
@@ -206,11 +230,11 @@ export default function ExpensesClient() {
                                     <div className="space-y-2">
                                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Classification</label>
                                         <select
-                                            value={formData.category}
-                                            onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                                            value={formData.categoryId}
+                                            onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
                                             className="w-full p-5 bg-slate-50 border-none rounded-2xl focus:bg-white focus:ring-4 focus:ring-red-500/10 outline-none transition-all font-bold text-slate-800 appearance-none shadow-sm"
                                         >
-                                            {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                                            {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                                         </select>
                                     </div>
                                 </div>

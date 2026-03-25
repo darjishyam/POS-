@@ -26,15 +26,19 @@ interface ProductFormProps {
 
 export default function ProductForm({ initialData, onSave, onCancel }: ProductFormProps) {
     const [categories, setCategories] = useState<any[]>([])
+    const [brands, setBrands] = useState<any[]>([])
+    const [units, setUnits] = useState<any[]>([])
     const fileInputRef = useRef<HTMLInputElement>(null)
+    const docInputRef = useRef<HTMLInputElement>(null)
     const [isUploading, setIsUploading] = useState(false)
+    const [isDocUploading, setIsDocUploading] = useState(false)
     const [isGenerating, setIsGenerating] = useState(false)
     const [formData, setFormData] = useState({
         name: initialData?.name || '',
         sku: initialData?.sku || '',
         barcodeType: initialData?.barcodeType || 'CODE128',
-        unit: initialData?.unit || 'Piece',
-        brand: initialData?.brand || '',
+        unitId: initialData?.unitId || '',
+        brandId: initialData?.brandId || '',
         categoryId: initialData?.categoryId || '',
         alertQuantity: initialData?.alertQuantity || 5,
         manageStock: initialData?.manageStock ?? true,
@@ -46,12 +50,26 @@ export default function ProductForm({ initialData, onSave, onCancel }: ProductFo
     })
 
     useEffect(() => {
-        const fetchCategories = async () => {
-            const res = await fetch('/api/categories')
-            const data = await res.json()
-            setCategories(Array.isArray(data) ? data : [])
+        const fetchData = async () => {
+            try {
+                const [catRes, brandRes, unitRes] = await Promise.all([
+                    fetch('/api/categories'),
+                    fetch('/api/brands'),
+                    fetch('/api/units')
+                ])
+                const [catData, brandData, unitData] = await Promise.all([
+                    catRes.json(),
+                    brandRes.json(),
+                    unitRes.json()
+                ])
+                setCategories(Array.isArray(catData) ? catData : [])
+                setBrands(Array.isArray(brandData) ? brandData : [])
+                setUnits(Array.isArray(unitData) ? unitData : [])
+            } catch (error) {
+                console.error('Fetch Error:', error)
+            }
         }
-        fetchCategories()
+        fetchData()
     }, [])
 
     const handleLocalUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -84,6 +102,36 @@ export default function ProductForm({ initialData, onSave, onCancel }: ProductFo
         reader.readAsDataURL(file)
     }
 
+    const handleDocUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
+        if (!file) return
+
+        setIsDocUploading(true)
+        const reader = new FileReader()
+        reader.onloadend = async () => {
+            try {
+                const res = await fetch('/api/upload', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        image: reader.result, // Reuse existing field name in API for simplicity as I generalized it
+                        filename: file.name
+                    })
+                })
+                const data = await res.json()
+                if (data.url) {
+                    setFormData({ ...formData, brochureUrl: data.url })
+                    toast.success('Document Asset Synchronized')
+                }
+            } catch (error) {
+                toast.error('Document Synchronization Failure')
+            } finally {
+                setIsDocUploading(false)
+            }
+        }
+        reader.readAsDataURL(file)
+    }
+
     const handleAIAssist = async () => {
         if (!formData.name) {
             toast.error('Identity protocol incomplete: Asset Name required')
@@ -93,12 +141,13 @@ export default function ProductForm({ initialData, onSave, onCancel }: ProductFo
         setIsGenerating(true)
         try {
             const selectedCat = categories.find(c => c.id === formData.categoryId)?.name
+            const selectedBrand = brands.find(b => b.id === formData.brandId)?.name
             const res = await fetch('/api/ai/generate-description', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     name: formData.name,
-                    brand: formData.brand,
+                    brand: selectedBrand,
                     category: selectedCat
                 })
             })
@@ -199,25 +248,37 @@ export default function ProductForm({ initialData, onSave, onCancel }: ProductFo
                             {/* Unit */}
                             <div className="space-y-3">
                                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-2">Unit of Measure</label>
-                                <input 
-                                    type="text"
-                                    placeholder="e.g. Piece, Box"
-                                    className="w-full p-6 bg-slate-50 border-none rounded-[1.5rem] focus:bg-white focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all font-bold text-slate-800"
-                                    value={formData.unit}
-                                    onChange={(e) => setFormData({...formData, unit: e.target.value})}
-                                />
+                                <div className="relative">
+                                    <select 
+                                        className="w-full p-6 bg-slate-50 border-none rounded-[1.5rem] focus:bg-white focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all font-bold text-slate-800 appearance-none"
+                                        value={formData.unitId}
+                                        onChange={(e) => setFormData({...formData, unitId: e.target.value})}
+                                    >
+                                        <option value="">Select Unit...</option>
+                                        {units.map(unit => (
+                                            <option key={unit.id} value={unit.id}>{unit.name}</option>
+                                        ))}
+                                    </select>
+                                    <ChevronDown className="w-5 h-5 absolute right-6 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                                </div>
                             </div>
 
                             {/* Brand */}
                             <div className="space-y-3">
                                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-2">Global Brand</label>
-                                <input 
-                                    type="text"
-                                    placeholder="e.g. Sony, Apple"
-                                    className="w-full p-6 bg-slate-50 border-none rounded-[1.5rem] focus:bg-white focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all font-bold text-slate-800"
-                                    value={formData.brand}
-                                    onChange={(e) => setFormData({...formData, brand: e.target.value})}
-                                />
+                                <div className="relative">
+                                    <select 
+                                        className="w-full p-6 bg-slate-50 border-none rounded-[1.5rem] focus:bg-white focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all font-bold text-slate-800 appearance-none"
+                                        value={formData.brandId}
+                                        onChange={(e) => setFormData({...formData, brandId: e.target.value})}
+                                    >
+                                        <option value="">Select Brand...</option>
+                                        {brands.map(brand => (
+                                            <option key={brand.id} value={brand.id}>{brand.name}</option>
+                                        ))}
+                                    </select>
+                                    <ChevronDown className="w-5 h-5 absolute right-6 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                                </div>
                             </div>
 
                             {/* Category */}
@@ -305,7 +366,7 @@ export default function ProductForm({ initialData, onSave, onCancel }: ProductFo
                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] ml-2">Market Configuration</p>
                         <div className="space-y-4">
                             <div className="relative">
-                                <span className="absolute left-6 top-1/2 -translate-y-1/2 text-2xl font-black text-slate-300 italic">$</span>
+                                <span className="absolute left-6 top-1/2 -translate-y-1/2 text-2xl font-black text-slate-300 italic">₹</span>
                                 <input 
                                     required
                                     type="number" step="0.01"
@@ -402,8 +463,27 @@ export default function ProductForm({ initialData, onSave, onCancel }: ProductFo
                                 value={formData.brochureUrl}
                                 onChange={(e) => setFormData({...formData, brochureUrl: e.target.value})}
                             />
-                            <button type="button" className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all">
-                                Upload Local File
+                            <input 
+                                type="file" 
+                                ref={docInputRef} 
+                                className="hidden" 
+                                accept=".pdf,.doc,.docx,.txt"
+                                onChange={handleDocUpload}
+                            />
+                            <button 
+                                type="button" 
+                                onClick={() => docInputRef.current?.click()}
+                                disabled={isDocUploading}
+                                className={`w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${isDocUploading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            >
+                                {isDocUploading ? (
+                                    <>
+                                        <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                        Processing...
+                                    </>
+                                ) : (
+                                    'Upload Local File'
+                                )}
                             </button>
                         </div>
                     </div>

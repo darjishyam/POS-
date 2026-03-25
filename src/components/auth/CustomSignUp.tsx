@@ -127,7 +127,7 @@ const CustomSignUp = () => {
                                 required
                                 type="text"
                                 placeholder="BRUCE WAYNE"
-                                className="w-full bg-slate-100/50 border-2 border-slate-100 focus:border-slate-900 rounded-2xl p-5 p-12 text-[12px] font-bold text-slate-900 focus:bg-white transition-all duration-300 outline-none uppercase tracking-widest placeholder:text-slate-400 shadow-sm"
+                                className="w-full bg-slate-100/50 border-2 border-slate-100 focus:border-slate-900 rounded-2xl p-5 pl-12 text-[12px] font-bold text-slate-900 focus:bg-white transition-all duration-300 outline-none uppercase tracking-widest placeholder:text-slate-400 shadow-sm"
                                 value={fullName}
                                 onChange={(e) => setFullName(e.target.value.toUpperCase())}
                             />

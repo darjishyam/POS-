@@ -10,6 +10,7 @@ export async function GET() {
 
     try {
         const expenses = await prisma.expense.findMany({
+            include: { category: true },
             orderBy: { date: 'desc' }
         })
         return NextResponse.json(expenses)
@@ -24,9 +25,9 @@ export async function POST(req: Request) {
 
     try {
         const body = await req.json()
-        const { amount, description, category, date } = body
+        const { amount, description, categoryId, date } = body
 
-        if (!amount || !description || !category) {
+        if (!amount || !description || !categoryId) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
         }
 
@@ -34,9 +35,10 @@ export async function POST(req: Request) {
             data: {
                 amount: parseFloat(amount),
                 description,
-                category,
+                categoryId,
                 date: date ? new Date(date) : new Date()
-            }
+            },
+            include: { category: true }
         })
 
         return NextResponse.json(expense)

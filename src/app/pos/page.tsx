@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { useSettings } from '@/context/SettingsContext'
 
 export default function POSPage() {
     const [products, setProducts] = useState<any[]>([])
@@ -19,6 +20,7 @@ export default function POSPage() {
     const [discountAmount, setDiscountAmount] = useState<number>(0)
     const [paymentMethod, setPaymentMethod] = useState<string>('CASH')
     const [receipt, setReceipt] = useState<any>(null)
+    const { settings } = useSettings()
 
     useEffect(() => {
         // Fetch everything in parallel
@@ -47,7 +49,11 @@ export default function POSPage() {
         } else {
             setDiscountAmount(0)
         }
-    }, [selectedCustomerId, cart, customers])
+        
+        // Auto-calculate tax from global settings if not manually changed
+        const currentSubtotal = cart.reduce((s, i) => s + (i.price * i.quantity), 0)
+        setTaxAmount((currentSubtotal * (settings.taxRate || 0)) / 100)
+    }, [selectedCustomerId, cart, customers, settings.taxRate])
 
     const filteredProducts = products.filter(p => {
         const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -143,7 +149,7 @@ export default function POSPage() {
                         <Link href="/" className="p-2 hover:bg-slate-100 rounded-xl transition-colors">
                             <svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
                         </Link>
-                        <h1 className="text-2xl font-black text-slate-900 tracking-tighter italic">Terminal <span className="text-emerald-500 NOT-italic">01</span></h1>
+                        <h1 className="text-2xl font-black text-slate-900 tracking-tighter italic">{settings.storeName.split(' ')[0]} <span className="text-emerald-500 NOT-italic">{settings.storeName.split(' ').slice(1).join(' ')}</span></h1>
                     </div>
 
                     <div className="flex-1 w-full relative">
@@ -228,7 +234,7 @@ export default function POSPage() {
                                 <div className="p-5">
                                     <h3 className="font-black text-slate-900 text-lg leading-tight mb-2 line-clamp-2 min-h-[3.5rem]">{product.name}</h3>
                                     <div className="flex justify-between items-center">
-                                        <div className="text-2xl font-black text-emerald-500 font-mono tracking-tighter">${product.price.toFixed(2)}</div>
+                                        <div className="text-2xl font-black text-emerald-500 font-mono tracking-tighter">{settings.currencySymbol}{product.price.toFixed(2)}</div>
                                         <div className="w-10 h-10 bg-slate-50 text-slate-300 rounded-xl flex items-center justify-center group-hover:bg-emerald-500 group-hover:text-white transition-colors shadow-inner">
                                             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" /></svg>
                                         </div>
@@ -262,7 +268,7 @@ export default function POSPage() {
                                 <div key={item.id} className="flex justify-between items-center group animate-in slide-in-from-right duration-300">
                                     <div className="flex-1 pr-6">
                                         <div className="font-black text-slate-900 text-sm leading-tight mb-1 uppercase tracking-tight">{item.name}</div>
-                                        <div className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">${item.price.toFixed(2)} × {item.quantity} = ${(item.price * item.quantity).toFixed(2)}</div>
+                                        <div className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">{settings.currencySymbol}{item.price.toFixed(2)} × {item.quantity} = {settings.currencySymbol}{(item.price * item.quantity).toFixed(2)}</div>
                                     </div>
                                     <div className="flex items-center gap-6">
                                         <button onClick={() => removeFromCart(item.id)} className="text-slate-200 hover:text-rose-500 transition-colors">
@@ -278,10 +284,10 @@ export default function POSPage() {
                         <div className="space-y-2">
                             <div className="flex justify-between text-xs font-bold text-slate-400 uppercase tracking-widest">
                                 <span>Subtotal</span>
-                                <span>${subtotal.toFixed(2)}</span>
+                                <span>₹{subtotal.toFixed(2)}</span>
                             </div>
                             <div className="flex justify-between items-center gap-4">
-                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tax ($)</span>
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tax ({settings.currencySymbol})</span>
                                 <input
                                     type="number"
                                     className="w-20 p-1 bg-white rounded-lg text-right text-xs font-bold outline-none border border-slate-200 focus:border-emerald-500"
@@ -290,7 +296,7 @@ export default function POSPage() {
                                 />
                             </div>
                             <div className="flex justify-between items-center gap-4">
-                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Discount ($)</span>
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Discount ({settings.currencySymbol})</span>
                                 <input
                                     type="number"
                                     className="w-20 p-1 bg-white rounded-lg text-right text-xs font-bold outline-none border border-slate-200 focus:border-emerald-500"
@@ -302,7 +308,7 @@ export default function POSPage() {
 
                         <div className="flex justify-between items-center text-slate-400 font-black text-[10px] uppercase tracking-widest italic pt-2 border-t border-slate-200">
                             <span>Final Execution</span>
-                            <span className="text-3xl font-black text-emerald-500 font-mono tracking-tighter NOT-italic">${total.toFixed(2)}</span>
+                            <span className="text-3xl font-black text-emerald-500 font-mono tracking-tighter NOT-italic">{settings.currencySymbol}{total.toFixed(2)}</span>
                         </div>
 
                         {/* Customer Matrix Selection */}
@@ -358,7 +364,7 @@ export default function POSPage() {
                         <div className="bg-white/20 px-3 py-1 rounded-full text-[10px] NOT-italic">{cart.length}</div>
                         <span>EXTRACT ORDER</span>
                     </div>
-                    <span className="NOT-italic font-mono text-2xl tracking-tighter">${total.toFixed(2)}</span>
+                    <span className="NOT-italic font-mono text-2xl tracking-tighter">{settings.currencySymbol}{total.toFixed(2)}</span>
                 </button>
             </div>
 
@@ -375,7 +381,7 @@ export default function POSPage() {
                                     <div key={item.id} className="flex justify-between items-center group">
                                         <div className="flex-1 pr-6">
                                             <div className="font-black text-slate-900 text-xl uppercase tracking-tighter leading-none mb-1">{item.name}</div>
-                                            <div className="text-xs font-black text-emerald-500 uppercase tracking-widest">${item.price.toFixed(2)} × {item.quantity}</div>
+                                            <div className="text-xs font-black text-emerald-500 uppercase tracking-widest">{settings.currencySymbol}{item.price.toFixed(2)} × {item.quantity}</div>
                                         </div>
                                         <button onClick={() => removeFromCart(item.id)} className="p-3 bg-rose-50 text-rose-500 rounded-2xl">
                                             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
@@ -397,7 +403,7 @@ export default function POSPage() {
                             </div>
                             <div className="flex justify-between items-center">
                                 <span className="text-slate-400 font-black uppercase text-xs tracking-widest italic">Total</span>
-                                <span className="text-4xl font-black text-emerald-500 font-mono tracking-tighter">${total.toFixed(2)}</span>
+                                <span className="text-4xl font-black text-emerald-500 font-mono tracking-tighter">{settings.currencySymbol}{total.toFixed(2)}</span>
                             </div>
                             <button onClick={handleCheckout} className="w-full py-6 rounded-[2.5rem] bg-emerald-500 text-white font-black text-2xl shadow-2xl">EXECUTE PAY</button>
                         </div>
@@ -415,7 +421,7 @@ export default function POSPage() {
                             <div className="w-16 h-16 bg-emerald-500 text-white rounded-2xl flex items-center justify-center mb-4 mx-auto shadow-lg shadow-emerald-200">
                                 <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>
                             </div>
-                            <h2 className="text-2xl font-black text-slate-900 italic uppercase tracking-tighter">Terminal Receipt</h2>
+                            <h2 className="text-2xl font-black text-slate-900 italic uppercase tracking-tighter">{settings.storeName} Receipt</h2>
                             <p className="text-slate-400 font-bold uppercase tracking-[0.2em] text-[8px] mt-1">Transaction: {receipt.id.slice(-8).toUpperCase()}</p>
                         </div>
 
@@ -425,7 +431,7 @@ export default function POSPage() {
                                 {receipt.items?.map((item: any) => (
                                     <div key={item.id} className="flex justify-between text-[11px] font-bold text-slate-800 uppercase tracking-tight">
                                         <span className="flex-1 pr-4">Unit Purchase × {item.quantity}</span>
-                                        <span className="font-mono">${(item.price * item.quantity).toFixed(2)}</span>
+                                        <span className="font-mono">₹{(item.price * item.quantity).toFixed(2)}</span>
                                     </div>
                                 ))}
                             </div>
@@ -433,21 +439,21 @@ export default function POSPage() {
                             <div className="space-y-1 text-[11px] font-bold text-slate-400 uppercase tracking-widest pt-2">
                                 <div className="flex justify-between">
                                     <span>Base Amount</span>
-                                    <span className="text-slate-600 font-mono">${(receipt.totalAmount - receipt.taxAmount + receipt.discountAmount).toFixed(2)}</span>
+                                    <span className="text-slate-600 font-mono">₹{(receipt.totalAmount - receipt.taxAmount + receipt.discountAmount).toFixed(2)}</span>
                                 </div>
                                 <div className="flex justify-between">
                                     <span>Tax Amount</span>
-                                    <span className="text-slate-600 font-mono">+${receipt.taxAmount.toFixed(2)}</span>
+                                    <span className="text-slate-600 font-mono">+₹{receipt.taxAmount.toFixed(2)}</span>
                                 </div>
                                 <div className="flex justify-between">
                                     <span>Special Discount</span>
-                                    <span className="text-rose-500 font-mono">-${receipt.discountAmount.toFixed(2)}</span>
+                                    <span className="text-rose-500 font-mono">-₹{receipt.discountAmount.toFixed(2)}</span>
                                 </div>
                             </div>
 
                             <div className="flex justify-between items-center pt-4 border-t border-slate-200">
                                 <span className="text-[10px] font-black text-slate-900 uppercase tracking-[0.3em] italic">Total Extraction</span>
-                                <span className="text-3xl font-black text-emerald-500 font-mono tracking-tighter">${receipt.totalAmount.toFixed(2)}</span>
+                                <span className="text-3xl font-black text-emerald-500 font-mono tracking-tighter">{settings.currencySymbol}{receipt.totalAmount.toFixed(2)}</span>
                             </div>
 
                             <div className="flex justify-between items-center pt-2">

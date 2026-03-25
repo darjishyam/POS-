@@ -1,9 +1,59 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+    const { searchParams } = new URL(req.url)
+    const type = searchParams.get('type') || 'profit-loss'
+
     try {
-        // Get sales for the last 7 days
+        if (type === 'expenses') {
+            const expenses = await prisma.expense.findMany({
+                include: { category: true },
+                orderBy: { date: 'desc' }
+            })
+
+            // Group by category for breakdown
+            const categoryGroups: Record<string, number> = {}
+            expenses.forEach((exp: any) => {
+                const catName = exp.category?.name || 'Uncategorized'
+                categoryGroups[catName] = (categoryGroups[catName] || 0) + exp.amount
+            })
+
+            const breakdown = Object.entries(categoryGroups).map(([name, value]) => ({ name, value }))
+
+            return NextResponse.json({ expenses, breakdown })
+        }
+
+        if (type === 'stock') {
+            const products = await prisma.product.findMany({
+                select: {
+                    name: true,
+                    stock: true,
+                    price: true,
+                    category: { select: { name: true } }
+                }
+            })
+            return NextResponse.json(products)
+        }
+
+        if (type === 'purchase-sale') {
+            const sevenDaysAgo = new Date()
+            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+
+            const sales = await prisma.order.findMany({
+                where: { createdAt: { gte: sevenDaysAgo } },
+                select: { totalAmount: true, createdAt: true }
+            })
+
+            const purchases = await prisma.purchase.findMany({
+                where: { createdAt: { gte: sevenDaysAgo } },
+                select: { totalAmount: true, createdAt: true }
+            })
+
+            return NextResponse.json({ sales, purchases })
+        }
+
+        // Default: Profit & Loss (Sales vs Expenses)
         const sevenDaysAgo = new Date()
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
 
@@ -21,7 +71,6 @@ export async function GET() {
         // Group by day
         const dailyStats: Record<string, { sales: number, expenses: number }> = {}
 
-        // Initialize last 7 days with 0
         for (let i = 0; i < 7; i++) {
             const date = new Date()
             date.setDate(date.getDate() - i)
@@ -43,7 +92,6 @@ export async function GET() {
             }
         })
 
-        // Convert to array for charts
         const chartData = Object.entries(dailyStats)
             .map(([date, stats]) => ({
                 date,
@@ -56,6 +104,6 @@ export async function GET() {
         return NextResponse.json(chartData)
     } catch (error) {
         console.error('Reports Error:', error)
-        return NextResponse.json({ error: 'Failed to fetch sales reports' }, { status: 500 })
+        return NextResponse.json({ error: 'Failed to fetch intelligence dossier' }, { status: 500 })
     }
 }

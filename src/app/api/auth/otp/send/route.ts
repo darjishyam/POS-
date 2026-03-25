@@ -34,8 +34,7 @@ export async function POST(request: Request) {
             <div style="font-family: monospace; background: #fafafa; padding: 40px; text-align: center;">
               <h1 style="color: #000; font-size: 24px; font-weight: 900; margin-bottom: 30px;">IDENTITY VERIFICATION</h1>
               <p style="color: #666; font-size: 14px; margin-bottom: 20px;">Use the following code to authorize your terminal:</p>
-              <div style="background: #000; color: #10b981; padding: 20px; font-size: 40px; font-weight: 900; letter-spacing: 12px; display: inline-block; border-radius: 12px;">
-                ${code}
+              <div style="background: #000; color: #10b981; padding: 20px; font-size: 40px; font-weight: 900; letter-spacing: 12px; display: inline-block; border-radius: 12px;">₹{code}
               </div>
               <p style="color: #999; font-size: 10px; margin-top: 40px;">This token expires in 10 minutes.</p>
             </div>

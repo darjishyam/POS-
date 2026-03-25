@@ -99,8 +99,8 @@ export async function POST(request: Request) {
                 }
             })
 
-            // 2. Decrement Stock ONLY if not a DRAFT
-            if (status !== 'DRAFT') {
+            // 2. Decrement Stock ONLY if not a DRAFT or QUOTATION
+            if (status !== 'DRAFT' && status !== 'QUOTATION') {
                 const defaultLocation = await tx.location.findFirst({
                     where: { type: 'STORE' }
                 })

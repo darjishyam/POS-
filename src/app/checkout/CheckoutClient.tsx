@@ -20,8 +20,10 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { toast, Toaster } from 'react-hot-toast'
+import { useSettings } from '@/context/SettingsContext'
 
 export default function CheckoutClient() {
+    const { settings } = useSettings()
     const { cart, totalAmount: subtotal, clearCart } = useCart()
     const { user, role } = useAuth()
     const [status, setStatus] = useState<'idle' | 'processing' | 'success'>('idle')
@@ -140,7 +142,7 @@ export default function CheckoutClient() {
         }
     }, [])
 
-    const handleCheckout = async (options?: { isDraft?: boolean }) => {
+    const handleCheckout = async (options?: { isDraft?: boolean, isQuotation?: boolean }) => {
         if (cart.length === 0) return
 
         if (paymentMethod === 'CARD' && !validateCard() && !options?.isDraft) {
@@ -157,7 +159,7 @@ export default function CheckoutClient() {
                     items: cart,
                     totalAmount: finalTotal,
                     paymentMethod,
-                    status: options?.isDraft ? 'DRAFT' : 'COMPLETED',
+                    status: options?.isDraft ? 'DRAFT' : options?.isQuotation ? 'QUOTATION' : 'COMPLETED',
                     cardDetails: paymentMethod === 'CARD' ? cardDetails : null,
                     upiId: paymentMethod === 'UPI' ? upiId : null,
                     agentId: selectedAgentId,
@@ -171,8 +173,8 @@ export default function CheckoutClient() {
                 setOrderData(order);
                 setStatus('success')
                 
-                if (options?.isDraft) {
-                    toast.success('Asset Session Virtualized: Draft Stored')
+                if (options?.isDraft || options?.isQuotation) {
+                    toast.success(options?.isQuotation ? 'Sales Quotation Generated' : 'Asset Session Virtualized: Draft Stored')
                     setStatus('idle') // Return to form state but keep data
                 } else {
                     setOrderData(order);
@@ -282,7 +284,7 @@ export default function CheckoutClient() {
                                                 </div>
                                             </div>
                                             <div className="text-right">
-                                                <p className="text-lg font-black text-slate-950 italic font-mono tracking-tighter">${(item.price * item.quantity).toFixed(2)}</p>
+                                                <p className="text-lg font-black text-slate-950 italic font-mono tracking-tighter">{settings.currencySymbol}{(item.price * item.quantity).toFixed(2)}</p>
                                                 <p className="text-[9px] font-bold text-emerald-600 uppercase tracking-widest mt-1 italic">Verified</p>
                                             </div>
                                         </div>
@@ -297,12 +299,12 @@ export default function CheckoutClient() {
                                 <div className="space-y-4 mb-8">
                                     <div className="flex justify-between items-center text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">
                                         <span>Gross Asset Value</span>
-                                        <span className="text-white">${(orderData.totalAmount + (orderData.discountAmount || 0)).toFixed(2)}</span>
+                                        <span className="text-white">{settings.currencySymbol}{(orderData.totalAmount + (orderData.discountAmount || 0)).toFixed(2)}</span>
                                     </div>
                                     {orderData.discountAmount > 0 && (
                                         <div className="flex justify-between items-center text-[10px] font-black text-emerald-500 uppercase tracking-[0.3em]">
                                             <span>Tier Reward Applied</span>
-                                            <span>-${orderData.discountAmount.toFixed(2)}</span>
+                                            <span>-{settings.currencySymbol}{orderData.discountAmount.toFixed(2)}</span>
                                         </div>
                                     )}
                                 </div>
@@ -310,7 +312,7 @@ export default function CheckoutClient() {
                                 <div className="flex justify-between items-end border-t border-white/10 pt-8">
                                     <div>
                                         <p className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.4em] mb-2 italic">Total Payable</p>
-                                        <h2 className="text-5xl font-black italic tracking-tighter">${orderData.totalAmount.toFixed(2)}</h2>
+                                        <h2 className="text-5xl font-black italic tracking-tighter">{settings.currencySymbol}{orderData.totalAmount.toFixed(2)}</h2>
                                     </div>
                                     <div className="text-right hidden sm:block">
                                         <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.3em]">Status</p>
@@ -365,7 +367,7 @@ export default function CheckoutClient() {
                                             <p className="text-[10px] font-black text-slate-400 mt-2 uppercase tracking-widest">{item.quantity} Unit(s) Locked</p>
                                         </div>
                                         <div className="text-right">
-                                            <p className="text-lg font-black text-slate-950 italic font-mono tracking-tighter">${(item.price * item.quantity).toFixed(2)}</p>
+                                            <p className="text-lg font-black text-slate-950 italic font-mono tracking-tighter">{settings.currencySymbol}{(item.price * item.quantity).toFixed(2)}</p>
                                         </div>
                                     </div>
                                 ))}
@@ -566,12 +568,12 @@ export default function CheckoutClient() {
 
                             <div className="flex justify-between items-center text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
                                 <span>Gross Subtotal</span>
-                                <span className="text-white">${subtotal.toFixed(2)}</span>
+                                <span className="text-white">{settings.currencySymbol}{subtotal.toFixed(2)}</span>
                             </div>
                             {discountAmount > 0 && (
                                 <div className="flex justify-between items-center text-[10px] font-black text-emerald-500 uppercase tracking-[0.2em] animate-pulse">
                                     <span>{selectedCustomer?.customerGroup?.name || 'Tier'} Discount ({groupDiscountPercent}%)</span>
-                                    <span>-${discountAmount.toFixed(2)}</span>
+                                    <span>-{settings.currencySymbol}{discountAmount.toFixed(2)}</span>
                                 </div>
                             )}
                             <div className="flex justify-between items-center text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
@@ -580,12 +582,12 @@ export default function CheckoutClient() {
                             </div>
                             <div className="flex justify-between items-center text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
                                 <span>Compliance Tax</span>
-                                <span className="text-white">$0.00</span>
+                                <span className="text-white">{settings.currencySymbol}0.00</span>
                             </div>
                             <div className="pt-6 border-t border-white/10 flex justify-between items-end">
                                 <div>
                                     <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-2">Authorized Total</span>
-                                    <span className="text-4xl font-black text-emerald-400 italic tracking-tighter font-mono">${finalTotal.toFixed(2)}</span>
+                                    <span className="text-4xl font-black text-emerald-400 italic tracking-tighter font-mono">{settings.currencySymbol}{finalTotal.toFixed(2)}</span>
                                 </div>
                             </div>
                         </div>

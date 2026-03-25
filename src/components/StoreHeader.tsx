@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useAuth } from '@/context/AuthContext'
-import { ShoppingCart, LayoutGrid, LogOut, User as UserIcon, ArrowRight } from 'lucide-react'
+import { ShoppingCart, LayoutGrid, LogOut, User as UserIcon, ArrowRight, Archive } from 'lucide-react'
 import Link from 'next/link'
 import { useCart } from '@/context/CartContext'
 
@@ -61,6 +61,9 @@ export function StoreHeader() {
                         </Link>
                     ) : (
                         <div className="flex items-center gap-3 group/user relative">
+                            <Link href="/orders" className="p-3 hover:bg-emerald-50 text-slate-300 hover:text-emerald-600 rounded-xl transition-all mr-2" title="My Orders">
+                                <Archive className="w-5 h-5" />
+                            </Link>
                             <div className="flex flex-col items-end mr-2">
                                 <p className="text-[10px] font-black text-slate-900 uppercase tracking-widest">{user?.displayName || 'Active Operator'}</p>
                                 <p className="text-[8px] font-bold text-emerald-500 uppercase tracking-[0.2em]">Terminal Online</p>

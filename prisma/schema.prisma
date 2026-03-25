@@ -36,9 +36,9 @@ model Product {
   image       String?     @default("https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&q=80&w=200")
   stock       Int         @default(0)
   categoryId  String?
-  brand       String?
+  brandId     String?
+  unitId      String?
   barcodeType String?     @default("CODE128")
-  unit        String?     @default("Piece")
   alertQuantity Int       @default(5)
   manageStock Boolean     @default(true)
   brochureUrl String?
@@ -47,9 +47,34 @@ model Product {
   items       OrderItem[]
   purchases   PurchaseItem[]
   category    Category?   @relation(fields: [categoryId], references: [id])
+  brand       Brand?      @relation(fields: [brandId], references: [id])
+  unit        Unit?       @relation(fields: [unitId], references: [id])
   locationStocks  LocationStock[]
   transferItems   StockTransferItem[]
   returns         SalesReturnItem[]
+  purchaseReturns PurchaseReturnItem[]
+  shipmentItems   ShipmentItem[]
+}
+
+model Brand {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  description String?
+  image       String?
+  status      Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  products    Product[]
+}
+
+model Unit {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  description String?
+  status      Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  products    Product[]
 }
 
 model Category {
@@ -101,6 +126,7 @@ model Order {
   agent          Agent?      @relation(fields: [agentId], references: [id])
   items          OrderItem[]
   returns        SalesReturn[]
+  shipments      Shipment[]
 }
 
 model SalesReturn {
@@ -123,6 +149,30 @@ model SalesReturnItem {
   price         Float       // Price at time of return
   salesReturn   SalesReturn @relation(fields: [salesReturnId], references: [id])
   product       Product     @relation(fields: [productId], references: [id])
+}
+
+model Shipment {
+  id               String         @id @default(cuid())
+  orderId          String
+  carrier          String         @default("SELF") // SELF, FEDEX, UPS, etc.
+  trackingNumber   String?
+  status           String         @default("PENDING") // PENDING, DISPATCHED, IN_TRANSIT, DELIVERED, FAILED
+  estimatedDelivery DateTime?
+  shippedAt        DateTime?
+  deliveredAt      DateTime?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  order            Order          @relation(fields: [orderId], references: [id])
+  items            ShipmentItem[]
+}
+
+model ShipmentItem {
+  id         String   @id @default(cuid())
+  shipmentId String
+  productId  String
+  quantity   Int
+  shipment   Shipment @relation(fields: [shipmentId], references: [id])
+  product    Product  @relation(fields: [productId], references: [id])
 }
 
 model Agent {
@@ -164,13 +214,52 @@ model Supplier {
 model Purchase {
   id              String         @id @default(cuid())
   supplierId      String
+  locationId      String?
   totalAmount     Float
+  amountPaid      Float          @default(0)
+  paymentStatus   String         @default("PAID") // PAID, PARTIAL, DUE
+  paymentMethod   String         @default("CASH") // CASH, CARD, UPI, CREDIT
   referenceNumber String?
   status          String         @default("RECEIVED")
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
   supplier        Supplier       @relation(fields: [supplierId], references: [id])
+  location        Location?      @relation(fields: [locationId], references: [id])
   items           PurchaseItem[]
+  payments        PurchasePayment[]
+  returns         PurchaseReturn[]
+}
+
+model PurchasePayment {
+  id            String   @id @default(cuid())
+  purchaseId    String
+  amount        Float
+  method        String   @default("CASH")
+  reference     String?
+  date          DateTime @default(now())
+  purchase      Purchase @relation(fields: [purchaseId], references: [id])
+}
+
+model PurchaseReturn {
+  id             String               @id @default(cuid())
+  purchaseId     String
+  reason         String?
+  totalRefund    Float
+  status         String               @default("COMPLETED")
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+  purchase       Purchase             @relation(fields: [purchaseId], references: [id])
+  items          PurchaseReturnItem[]
+}
+
+model PurchaseReturnItem {
+  id               String         @id @default(cuid())
+  purchaseReturnId String
+  productId        String
+  quantity         Int
+  unitCost         Float
+  purchaseReturn   PurchaseReturn @relation(fields: [purchaseReturnId], references: [id])
+  product          Product        @relation(fields: [productId], references: [id])
 }
 
 model PurchaseItem {
@@ -185,14 +274,24 @@ model PurchaseItem {
   product    Product  @relation(fields: [productId], references: [id])
 }
 
+model ExpenseCategory {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  description String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  expenses    Expense[]
+}
+
 model Expense {
   id          String   @id @default(cuid())
   amount      Float
   description String
-  category    String   // Rent, Utility, Salary, Marketing, etc.
+  categoryId  String?
   date        DateTime @default(now())
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  category    ExpenseCategory? @relation(fields: [categoryId], references: [id])
 }
 
 model Location {
@@ -205,6 +304,7 @@ model Location {
   fromTransfers StockTransfer[] @relation("FromLocation")
   toTransfers   StockTransfer[] @relation("ToLocation")
   stocks    LocationStock[]
+  purchases Purchase[]
 }
 
 model LocationStock {
@@ -242,8 +342,8 @@ model StockTransferItem {
 model Setting {
   id            String   @id @default("system")
   storeName     String   @default("BardPOS")
-  currency      String   @default("USD")
-  currencySymbol String  @default("$")
+  currency      String   @default("INR")
+  currencySymbol String  @default("₹")
   taxRate       Float    @default(0)
   address       String?
   phone         String?

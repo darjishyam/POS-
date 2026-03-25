@@ -6,6 +6,10 @@ export async function GET() {
         const purchases = await prisma.purchase.findMany({
             include: {
                 supplier: { select: { name: true } },
+                location: { select: { name: true } },
+                items: {
+                    include: { product: { select: { name: true } } }
+                },
                 _count: { select: { items: true } }
             },
             orderBy: { createdAt: 'desc' }
@@ -20,7 +24,11 @@ export async function GET() {
 export async function POST(request: Request) {
     try {
         const body = await request.json()
-        const { supplierId, totalAmount, referenceNumber, items, locationId } = body
+        const { supplierId, totalAmount, amountPaid = 0, paymentMethod = 'CASH', referenceNumber, items, locationId, status = 'RECEIVED' } = body
+        
+        let paymentStatus = 'PAID'
+        if (amountPaid === 0) paymentStatus = 'DUE'
+        else if (amountPaid < totalAmount) paymentStatus = 'PARTIAL'
 
         if (!supplierId || !items || items.length === 0) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
@@ -33,8 +41,12 @@ export async function POST(request: Request) {
                 data: {
                     supplierId,
                     totalAmount,
+                    amountPaid,
+                    paymentStatus,
+                    paymentMethod,
                     referenceNumber,
-                    status: 'RECEIVED',
+                    status,
+                    locationId,
                     items: {
                         create: items.map((item: any) => ({
                             productId: item.productId,
@@ -45,38 +57,46 @@ export async function POST(request: Request) {
                 }
             })
 
-            // 2. Update Product Stocks (Global and Location-specific)
-            for (const item of items) {
-                // global
-                await tx.product.update({
-                    where: { id: item.productId },
-                    data: {
-                        stock: {
-                            increment: item.quantity
-                        }
-                    }
-                })
-
-                // location-specific
-                if (locationId) {
-                    await tx.locationStock.upsert({
-                        where: {
-                            productId_locationId: {
-                                productId: item.productId,
-                                locationId: locationId
-                            }
-                        },
-                        update: {
-                            quantity: {
+            // 2. Update Product Stocks (Global and Location-specific) - ONLY IF RECEIVED
+            if (status === 'RECEIVED') {
+                for (const item of items) {
+                    await tx.product.update({
+                        where: { id: item.productId },
+                        data: {
+                            stock: {
                                 increment: item.quantity
                             }
-                        },
-                        create: {
-                            productId: item.productId,
-                            locationId: locationId,
-                            quantity: item.quantity
                         }
                     })
+
+                    // 2.2 Optional: Update Global Selling Price
+                    if (item.syncPrice && item.newPrice) {
+                        await tx.product.update({
+                            where: { id: item.productId },
+                            data: { price: item.newPrice }
+                        })
+                    }
+
+                    if (locationId) {
+                        await tx.locationStock.upsert({
+                            where: {
+                                productId_locationId: {
+                                    productId: item.productId,
+                                    locationId: locationId
+                                }
+                            },
+                            update: {
+                                quantity: {
+                                    increment: item.quantity
+                                }
+                            },
+                            create: {
+                                productId: item.productId,
+                                locationId: locationId,
+                                quantity: item.quantity
+                            }
+                        })
+                    }
                 }
             }
 

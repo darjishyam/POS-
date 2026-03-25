@@ -1,0 +1,11 @@
+[
+  {
+    "id": "cmn4f3ccs000cn1krdnd239ev",
+    "amount": 12,
+    "description": "This is just testing for expense",
+    "category": "Utilities",
+    "date": "2026-03-24T00:00:00.000Z",
+    "createdAt": "2026-03-24T09:33:38.598Z",
+    "updatedAt": "2026-03-24T09:33:38.598Z"
+  }
+]

@@ -6,17 +6,17 @@ import { v4 as uuidv4 } from 'uuid'
 export async function POST(req: NextRequest) {
     try {
         const formData = await req.json()
-        const { image, filename } = formData
+        const { image: assetData, filename } = formData
 
-        if (!image) {
-            return NextResponse.json({ error: 'No image data provided' }, { status: 400 })
+        if (!assetData) {
+            return NextResponse.json({ error: 'No asset data provided' }, { status: 400 })
         }
 
-        // Base64 to Buffer
-        const base64Data = image.replace(/^data:image\/\w+;base64,/, "")
+        // Base64 to Buffer - Handle various MIME types (image, application/pdf, text/plain, etc.)
+        const base64Data = assetData.replace(/^data:.+;base64,/, "")
         const buffer = Buffer.from(base64Data, 'base64')
 
-        const ext = filename.split('.').pop() || 'png'
+        const ext = filename.split('.').pop() || 'bin'
         const newFilename = `${uuidv4()}.${ext}`
         const uploadPath = path.join(process.cwd(), 'public', 'uploads', newFilename)
 
@@ -28,6 +28,6 @@ export async function POST(req: NextRequest) {
         })
     } catch (error) {
         console.error('Upload Error:', error)
-        return NextResponse.json({ error: 'Failed to synchronize visual asset' }, { status: 500 })
+        return NextResponse.json({ error: 'Failed to synchronize asset registry' }, { status: 500 })
     }
 }

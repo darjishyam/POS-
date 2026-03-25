@@ -6,7 +6,7 @@ import {
     Save, 
     Store, 
     Globe, 
-    DollarSign, 
+    IndianRupee, 
     Percent, 
     MapPin, 
     Phone, 
@@ -23,8 +23,8 @@ export default function SettingsClient() {
     const [submitting, setSubmitting] = useState(false)
     const [settings, setSettings] = useState<any>({
         storeName: 'BardPOS',
-        currency: 'USD',
-        currencySymbol: '$',
+        currency: 'INR',
+        currencySymbol: '₹',
         taxRate: 0,
         address: '',
         phone: '',
@@ -149,7 +149,7 @@ export default function SettingsClient() {
                     <section className="bg-white rounded-[3.5rem] p-12 border border-gray-100 shadow-xl shadow-gray-100/30">
                         <div className="flex items-center gap-4 mb-10">
                             <div className="p-4 bg-emerald-500 text-white rounded-[1.5rem] shadow-xl shadow-emerald-200">
-                                <DollarSign className="w-6 h-6" />
+                                <IndianRupee className="w-6 h-6" />
                             </div>
                             <div>
                                 <h3 className="text-2xl font-black text-slate-900 tracking-tighter uppercase italic">Financial Matrix</h3>
@@ -175,7 +175,7 @@ export default function SettingsClient() {
                                     value={settings.currencySymbol}
                                     onChange={(e) => setSettings({ ...settings, currencySymbol: e.target.value })}
                                     className="w-full p-6 bg-slate-50 border-none rounded-2xl focus:bg-white focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all font-bold text-slate-800"
-                                    placeholder="$"
+                                    placeholder="₹"
                                 />
                             </div>
                             <div className="space-y-3">

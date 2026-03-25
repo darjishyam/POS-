@@ -17,11 +17,12 @@ import { toast, Toaster } from 'react-hot-toast'
 import * as XLSX from 'xlsx'
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
-
 import { useRouter } from 'next/navigation'
+import { useSettings } from '@/context/SettingsContext'
 
 export default function InventoryClient() {
     const router = useRouter()
+    const { settings } = useSettings()
     const [products, setProducts] = useState<any[]>([])
     const [categories, setCategories] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
@@ -73,7 +74,7 @@ export default function InventoryClient() {
             'Name': p.name,
             'SKU': p.sku || 'N/A',
             'Category': p.category?.name || 'Unclassified',
-            'Price ($)': p.price,
+            [`Price (${settings.currencySymbol})`]: p.price,
             'Stock Count': p.stock
         })))
         const workbook = XLSX.utils.book_new()
@@ -94,7 +95,7 @@ export default function InventoryClient() {
             p.name,
             p.sku || 'N/A',
             p.category?.name || 'Unclassified',
-            `$${p.price.toFixed(2)}`,
+            `${settings.currencySymbol}${p.price.toFixed(2)}`,
             p.stock.toString()
         ])
 
@@ -164,7 +165,7 @@ export default function InventoryClient() {
                             className="bg-slate-900 hover:bg-black text-white px-8 py-5 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-slate-200 transition-all active:scale-95 flex items-center gap-3 group border border-emerald-500/20"
                         >
                             <Plus className="w-5 h-5 group-hover:rotate-90 group-hover:text-emerald-400 transition-all duration-500" />
-                            Initialize New SKU
+                            CONSTRUCT NEW ASSET
                         </button>
                     </div>
                 </div>
@@ -208,16 +209,26 @@ export default function InventoryClient() {
                     <div className="bg-white rounded-[3rem] border border-gray-100 shadow-xl shadow-gray-100/50 overflow-hidden">
                         <table className="w-full text-left border-collapse">
                             <thead>
-                                <tr className="bg-slate-50/50 border-b border-gray-50 uppercase tracking-widest text-[10px] font-black text-slate-400">
-                                    <th className="px-8 py-6">Product Intelligence</th>
-                                    <th className="px-8 py-6">Category</th>
-                                    <th className="px-8 py-6">Unit Price</th>
-                                    <th className="px-8 py-6">Reserved Stock</th>
-                                    <th className="px-8 py-6 text-right">Operations</th>
+                                <tr className="bg-slate-50/50 border-b border-gray-50 uppercase tracking-widest text-[10px] font-black text-slate-600 italic">
+                                    <th className="px-8 py-10">Product Intelligence</th>
+                                    <th className="px-8 py-10">Classification</th>
+                                    <th className="px-8 py-10">Unit Valuation</th>
+                                    <th className="px-8 py-10">Reserved Quantity</th>
+                                    <th className="px-8 py-10 text-right">Administrative Protocol</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-50">
-                                {filteredProducts.map(prod => (
+                                {filteredProducts.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={5} className="p-40 text-center bg-white">
+                                            <div className="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6 border border-slate-100 shadow-inner">
+                                                <Package className="w-10 h-10 text-slate-200" />
+                                            </div>
+                                            <p className="text-sm font-black text-gray-400 uppercase tracking-[0.4em] italic mb-2">Asset Portfolio Null</p>
+                                            <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">No matching digital signatures found in the global repository.</p>
+                                        </td>
+                                    </tr>
+                                ) : (filteredProducts || []).map(prod => (
                                     <tr key={prod.id} className="group hover:bg-slate-50/50 transition-colors">
                                         <td className="px-8 py-6">
                                             <div className="flex items-center gap-4">
@@ -244,7 +255,7 @@ export default function InventoryClient() {
                                             </span>
                                         </td>
                                         <td className="px-8 py-6">
-                                            <span className="text-xl font-black text-gray-900 italic tracking-tighter">${prod.price.toFixed(2)}</span>
+                                            <span className="text-xl font-black text-gray-900 italic tracking-tighter">{settings.currencySymbol}{prod.price.toFixed(2)}</span>
                                         </td>
                                         <td className="px-8 py-6">
                                             <div className="flex items-center gap-3">

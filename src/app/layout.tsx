@@ -4,6 +4,7 @@ import "./globals.css";
 import { Toaster } from 'react-hot-toast';
 import { CartProvider } from '@/context/CartContext';
 import { AuthProvider } from '@/context/AuthContext';
+import { SettingsProvider } from '@/context/SettingsContext';
 import Cart from "@/components/Cart";
 
 const geistSans = Geist({
@@ -28,17 +29,19 @@ export default function RootLayout({
 }>) {
   return (
     <AuthProvider>
-      <html lang="en">
-        <body
-          className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-        >
-          <CartProvider>
-            <Toaster position="top-center" />
-            <Cart />
-            {children}
-          </CartProvider>
-        </body>
-      </html>
+      <SettingsProvider>
+        <html lang="en">
+          <body
+            className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+          >
+            <CartProvider>
+              <Toaster position="top-center" />
+              <Cart />
+              {children}
+            </CartProvider>
+          </body>
+        </html>
+      </SettingsProvider>
     </AuthProvider>
   );
 }

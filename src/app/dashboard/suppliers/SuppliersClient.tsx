@@ -20,6 +20,7 @@ import {
 import * as XLSX from 'xlsx'
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import { useSettings } from '@/context/SettingsContext'
 
 interface Supplier {
     id: string
@@ -35,6 +36,7 @@ interface Supplier {
 }
 
 export default function SuppliersClient() {
+    const { settings } = useSettings()
     const [suppliers, setSuppliers] = useState<Supplier[]>([])
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null)
@@ -150,7 +152,7 @@ export default function SuppliersClient() {
             'Email': s.email || 'N/A',
             'Phone': s.phone || 'N/A',
             'Address': s.address || 'N/A',
-            'Total Purchases ($)': s.totalPurchaseVolume
+            [`Total Purchases (${settings.currencySymbol})`]: s.totalPurchaseVolume
         })))
         const workbook = XLSX.utils.book_new()
         XLSX.utils.book_append_sheet(workbook, worksheet, "Vendors")
@@ -171,7 +173,7 @@ export default function SuppliersClient() {
             s.contactPerson || 'N/A',
             s.email || 'N/A',
             s.phone || 'N/A',
-            `$${s.totalPurchaseVolume.toFixed(2)}`
+            `${settings.currencySymbol}${s.totalPurchaseVolume.toFixed(2)}`
         ])
 
         autoTable(doc, {
@@ -317,8 +319,7 @@ export default function SuppliersClient() {
                                                     <Package className="w-3 h-3" />
                                                     {s._count.purchases} Orders
                                                 </div>
-                                                <p className="text-lg font-black text-slate-900 tracking-tighter italic ml-1">
-                                                    ${(s.totalPurchaseVolume || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                <p className="text-lg font-black text-slate-900 tracking-tighter italic ml-1">{settings.currencySymbol}{(s.totalPurchaseVolume || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                                 </p>
                                             </div>
                                         </td>

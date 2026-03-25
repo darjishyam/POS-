@@ -1,5 +1,7 @@
-import PlaceholderPage from '@/components/PlaceholderPage'
+import { ReturnsClient } from './ReturnsClient'
+
+export const dynamic = 'force-dynamic'
 
 export default function SalesReturnsPage() {
-    return <PlaceholderPage title="Sales Returns" />
+    return <ReturnsClient />
 }

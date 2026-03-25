@@ -16,7 +16,13 @@ import {
     FileText,
     ShoppingCart,
     Eye,
-    RotateCcw
+    AlertCircle,
+    Undo2,
+    Minus,
+    Plus,
+    RotateCcw,
+    X,
+    IndianRupee
 } from 'lucide-react'
 import { toast, Toaster } from 'react-hot-toast'
 import { format } from 'date-fns'
@@ -44,6 +50,13 @@ export default function OrdersClient() {
     const { addToCart, clearCart } = useCart()
     const router = useRouter()
 
+    // Partial Return States
+    const [isReturnModalOpen, setIsReturnModalOpen] = useState(false)
+    const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
+    const [returnItems, setReturnItems] = useState<Record<string, number>>({})
+    const [returnReason, setReturnReason] = useState('Customer Satisfaction Protocol')
+    const [isSubmitting, setIsSubmitting] = useState(false)
+
     useEffect(() => {
         fetchOrders()
     }, [])
@@ -61,29 +74,83 @@ export default function OrdersClient() {
         }
     }
 
-    const handleReturn = async (order: Order) => {
-        if (!confirm('Initiate Reverse Logistics Protocol (Full Return)?')) return
+    const openReturnModal = (order: Order) => {
+        setSelectedOrder(order)
+        const initialQtys: Record<string, number> = {}
+        order.items.forEach(item => {
+            initialQtys[item.productId] = 0
+        })
+        setReturnItems(initialQtys)
+        setIsReturnModalOpen(true)
+    }
+
+    const handlePartialReturn = async () => {
+        if (!selectedOrder) return
+        
+        const itemsToReturn = selectedOrder.items
+            .filter(item => returnItems[item.productId] > 0)
+            .map(item => ({
+                productId: item.productId,
+                quantity: returnItems[item.productId],
+                price: item.price
+            }))
+
+        if (itemsToReturn.length === 0) {
+            return toast.error('No items selected for reversal')
+        }
+
+        setIsSubmitting(true)
+        const loadingToast = toast.loading('Executing Reverse Logistics...')
         
         try {
             const res = await fetch('/api/returns', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
+                    orderId: selectedOrder.id,
+                    reason: returnReason,
+                    items: itemsToReturn
+                })
+            })
+
+            if (res.ok) {
+                toast.success('Inventory Re-calibrated: Partial Return Complete', { id: loadingToast })
+                setIsReturnModalOpen(false)
+                fetchOrders()
+            } else {
+                toast.error('Partial Return Protocol Failure', { id: loadingToast })
+            }
+        } catch (err) {
+            toast.error('Sync Error', { id: loadingToast })
+        } finally {
+            setIsSubmitting(false)
+        }
+    }
+
+    const handleShip = async (order: Order) => {
+        const carrier = prompt('Enter Carrier (FedEx, UPS, SELF):', 'SELF')
+        if (!carrier) return
+        const trackingNumber = prompt('Enter Tracking Number (Optional):') || ''
+        
+        try {
+            const res = await fetch('/api/shipments', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
                     orderId: order.id,
-                    reason: 'Admin-Initiated Return',
+                    carrier,
+                    trackingNumber,
                     items: order.items.map(item => ({
                         productId: item.productId,
-                        quantity: item.quantity,
-                        price: item.price
+                        quantity: item.quantity
                     }))
                 })
             })
 
             if (res.ok) {
-                toast.success('Inventory Re-incremented: Return Complete')
-                fetchOrders()
+                toast.success('Asset Dispatched: Shipment Profile Created')
             } else {
-                toast.error('Return Protocol Failed')
+                toast.error('Dispatch Protocol Failed')
             }
         } catch (err) {
             toast.error('Sync Error')
@@ -129,7 +196,7 @@ export default function OrdersClient() {
                         <div className="text-right">
                             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">{statusFilter ? 'Subtotal' : 'Gross Inflow'}</p>
                             <div className="flex items-center gap-2 text-3xl font-black text-gray-950 italic tracking-tighter">
-                                <DollarSign className="w-6 h-6 text-emerald-600" />
+                                <span className="text-emerald-600 NOT-italic">₹</span>
                                 {totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                             </div>
                         </div>
@@ -156,9 +223,31 @@ export default function OrdersClient() {
                         <Search className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
                     </div>
 
-                    <div className="flex bg-slate-100/50 p-1.5 rounded-2xl border border-gray-100">
-                        <button className="px-6 py-2.5 rounded-xl bg-white shadow-sm text-[10px] font-black uppercase tracking-widest text-slate-900 border border-gray-100 font-black italic">Net Sales</button>
-                        <button className="px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 transition-colors">Refunds</button>
+                    <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-gray-100 shadow-inner">
+                        <button 
+                            onClick={() => router.push('/dashboard/orders')}
+                            className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                                !statusFilter ? 'bg-white shadow-sm text-slate-900 border border-gray-100 italic' : 'text-slate-400 hover:text-slate-600'
+                            }`}
+                        >
+                            ALL AUDIT
+                        </button>
+                        <button 
+                            onClick={() => router.push('/dashboard/orders?status=completed')}
+                            className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                                statusFilter === 'completed' ? 'bg-white shadow-sm text-emerald-600 border border-emerald-100 italic' : 'text-slate-400 hover:text-slate-600'
+                            }`}
+                        >
+                            COMPLETED
+                        </button>
+                        <button 
+                            onClick={() => router.push('/dashboard/orders?status=return_requested')}
+                            className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                                statusFilter === 'return_requested' ? 'bg-white shadow-sm text-amber-600 border border-amber-100 italic' : 'text-slate-400 hover:text-slate-600'
+                            }`}
+                        >
+                            RETURN REQ {orders.filter(o => o.status === 'RETURN_REQUESTED').length > 0 && `(${orders.filter(o => o.status === 'RETURN_REQUESTED').length})`}
+                        </button>
                     </div>
                 </div>
 
@@ -172,19 +261,24 @@ export default function OrdersClient() {
                     <div className="bg-white rounded-[3rem] border border-gray-100 shadow-xl shadow-gray-100/50 overflow-hidden">
                         <table className="w-full text-left border-collapse">
                             <thead>
-                                <tr className="bg-slate-50/50 border-b border-gray-50 uppercase tracking-widest text-[10px] font-black text-slate-400">
-                                    <th className="px-8 py-6">Order Signature</th>
-                                    <th className="px-8 py-6">Timestamp</th>
-                                    <th className="px-8 py-6">Settlement</th>
-                                    <th className="px-8 py-6 text-center">Payload</th>
-                                    <th className="px-8 py-6 text-right">Value Signature</th>
+                                <tr className="bg-slate-50/50 border-b border-gray-50 uppercase tracking-widest text-[10px] font-black text-slate-600 italic">
+                                    <th className="px-8 py-8">Order Signature</th>
+                                    <th className="px-8 py-8">Status Condition</th>
+                                    <th className="px-8 py-8">Execution Date</th>
+                                    <th className="px-8 py-8">Settlement</th>
+                                    <th className="px-8 py-8 text-center">Payload</th>
+                                    <th className="px-8 py-8 text-right px-10">Value Signature</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-50">
                                 {filteredOrders.length === 0 ? (
                                     <tr>
-                                        <td colSpan={5} className="p-20 text-center">
-                                            <span className="text-xs font-black text-gray-300 uppercase tracking-[0.2em]">Transaction Log Null</span>
+                                        <td colSpan={6} className="p-32 text-center bg-white">
+                                            <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6 border border-slate-100 shadow-inner">
+                                                <Receipt className="w-8 h-8 text-slate-200" />
+                                            </div>
+                                            <p className="text-xs font-black text-gray-400 uppercase tracking-[0.3em] italic mb-2">Audit Ledger Null</p>
+                                            <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">No matching transaction signatures found in the current temporal frame.</p>
                                         </td>
                                     </tr>
                                 ) : (filteredOrders || []).map((order) => (
@@ -198,6 +292,17 @@ export default function OrdersClient() {
                                                     <p className="font-black text-slate-900 text-sm tracking-tight uppercase">#{order.id.slice(-8).toUpperCase()}</p>
                                                     <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{order.customer?.name || 'GUEST-ENTITY'}</p>
                                                 </div>
+                                            </div>
+                                        </td>
+                                        <td className="px-8 py-6">
+                                            <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border font-black text-[9px] uppercase tracking-widest ${
+                                                order.status === 'COMPLETED' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+                                                order.status === 'RETURN_REQUESTED' ? 'bg-amber-50 text-amber-600 border-amber-100 animate-pulse' :
+                                                order.status === 'RETURNED' ? 'bg-blue-50 text-blue-600 border-blue-100' :
+                                                'bg-slate-50 text-slate-500 border-slate-100'
+                                            }`}>
+                                                {order.status === 'RETURN_REQUESTED' && <AlertCircle className="w-3 h-3" />}
+                                                {order.status}
                                             </div>
                                         </td>
                                         <td className="px-8 py-6">
@@ -259,20 +364,31 @@ export default function OrdersClient() {
                                                     )
                                                 )}
 
-                                                {order.status === 'COMPLETED' && (
-                                                    <button 
-                                                        onClick={() => handleReturn(order)}
-                                                        className="p-3 bg-red-500/10 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all group/return border border-red-500/20"
-                                                        title="Return Order"
-                                                    >
-                                                        <RotateCcw className="w-4 h-4 group-hover/return:rotate-[-90deg] transition-transform" />
-                                                    </button>
+                                                {(order.status === 'COMPLETED' || order.status === 'RETURN_REQUESTED') && (
+                                                    <div className="flex gap-2">
+                                                        {order.status === 'COMPLETED' && (
+                                                            <button 
+                                                                onClick={() => handleShip(order)}
+                                                                className="p-3 bg-blue-500 text-white rounded-xl hover:bg-blue-400 transition-all shadow-lg shadow-blue-500/10 group/ship active:scale-95 border border-blue-400"
+                                                                title="Ship Asset"
+                                                            >
+                                                                <Package className="w-4 h-4 group-hover/ship:scale-110 transition-transform" />
+                                                            </button>
+                                                        )}
+                                                        <button 
+                                                            onClick={() => openReturnModal(order)}
+                                                            className="p-3 bg-red-500/10 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all group/return border border-red-500/20 active:scale-95"
+                                                            title={order.status === 'RETURN_REQUESTED' ? "Approve Return Request" : "Partial Return Protocol"}
+                                                        >
+                                                            <RotateCcw className="w-4 h-4 group-hover/return:rotate-[-90deg] transition-transform" />
+                                                        </button>
+                                                    </div>
                                                 )}
                                                 
                                                 <div className="flex items-center gap-2 group-hover:text-emerald-600 transition-colors">
                                                     <ArrowUpRight className="w-4 h-4" />
                                                     <span className="text-2xl font-black text-gray-950 tracking-tighter italic">
-                                                        ${order.totalAmount.toFixed(2)}
+                                                        ₹{order.totalAmount.toFixed(2)}
                                                     </span>
                                                 </div>
                                             </div>
@@ -288,22 +404,3 @@ export default function OrdersClient() {
     )
 }
 
-function DollarSign(props: any) {
-    return (
-        <svg
-            {...props}
-            xmlns="http://www.w3.org/2000/svg"
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-        >
-            <line x1="12" y1="2" x2="12" y2="22" />
-            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-        </svg>
-    )
-}

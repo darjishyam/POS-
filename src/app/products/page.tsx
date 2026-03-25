@@ -34,7 +34,8 @@ export default function ProductsPage() {
         stock: '0',
         description: '',
         categoryId: '',
-        image: ''
+        image: '',
+        brochureUrl: ''
     })
 
     const { user, role, loading: authLoading } = useAuth()
@@ -109,7 +110,8 @@ export default function ProductsPage() {
                     stock: '0',
                     description: '',
                     categoryId: categories[0]?.id || '',
-                    image: ''
+                    image: '',
+                    brochureUrl: ''
                 })
                 fetchProducts()
             } else {
@@ -270,6 +272,16 @@ export default function ProductsPage() {
                                         />
                                     </div>
 
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Specification Document (URL)</label>
+                                        <input 
+                                            value={formData.brochureUrl}
+                                            onChange={e => setFormData({...formData, brochureUrl: e.target.value})}
+                                            className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-sm font-bold focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
+                                            placeholder="https://manuals.com/..."
+                                        />
+                                    </div>
+
                                     <button 
                                         type="submit"
                                         disabled={isAdding}
@@ -314,7 +326,7 @@ export default function ProductsPage() {
                                                     <p className="text-[10px] font-bold text-slate-400 mt-2 uppercase tracking-widest">{product.sku}</p>
                                                 </div>
                                                 <div className="text-right">
-                                                    <p className="text-2xl font-black text-emerald-600 italic tracking-tighter font-mono">${product.price.toFixed(2)}</p>
+                                                    <p className="text-2xl font-black text-emerald-600 italic tracking-tighter font-mono">₹{product.price.toFixed(2)}</p>
                                                 </div>
                                             </div>
 
@@ -326,12 +338,15 @@ export default function ProductsPage() {
                                                     <ShoppingBag className="w-4 h-4" />
                                                     Acquire
                                                 </button>
-                                                <button 
-                                                    onClick={() => handleViewSpecs(product.brochureUrl)}
-                                                    className="p-4 bg-slate-50 hover:bg-white border border-transparent hover:border-slate-200 rounded-2xl text-slate-400 hover:text-emerald-600 transition-all"
-                                                >
-                                                    <ExternalLink className="w-5 h-5" />
-                                                </button>
+                                                {product.brochureUrl && (
+                                                    <button 
+                                                        onClick={() => handleViewSpecs(product.brochureUrl)}
+                                                        className="p-4 bg-slate-50 hover:bg-white border border-transparent hover:border-slate-200 rounded-2xl text-slate-400 hover:text-emerald-600 transition-all"
+                                                        title="View Specifications"
+                                                    >
+                                                        <ExternalLink className="w-5 h-5" />
+                                                    </button>
+                                                )}
                                             </div>
                                         </div>
                                     </div>

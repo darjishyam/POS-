@@ -79,7 +79,7 @@ export default function ProductShelf({ products }: { products: Product[] }) {
                         </div>
                         
                         <div className="flex justify-between items-center">
-                            <span className="text-2xl font-black text-emerald-600 font-mono tracking-tighter italic">${product.price.toFixed(2)}</span>
+                            <span className="text-2xl font-black text-emerald-600 font-mono tracking-tighter italic">₹{product.price.toFixed(2)}</span>
                             <button 
                                 onClick={() => handleAdd(product)}
                                 className="w-14 h-14 bg-emerald-600 text-white rounded-[1.5rem] flex items-center justify-center hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-500/20 active:scale-90 border border-emerald-400 group/btn relative overflow-hidden"
