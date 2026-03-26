@@ -127,7 +127,7 @@ export default function StockLimitPage() {
                                     <span className="text-[10px] font-black uppercase tracking-widest">Critical Shortage</span>
                                 </div>
                                 <Link 
-                                    href={`/dashboard/inventory/purchases/new?productId=${product.id}`}
+                                    href={`/dashboard/purchases?productId=${product.id}`}
                                     className="flex items-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-rose-500 transition-all shadow-xl shadow-slate-200 group/link"
                                 >
                                     Restock Assets <ArrowRight className="w-3 h-3 group-hover/link:translate-x-1 transition-transform" />

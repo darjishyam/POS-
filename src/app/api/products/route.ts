@@ -2,8 +2,19 @@ import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { productSchema } from '@/lib/validations'
 
-export async function GET() {
+export async function GET(request: Request) {
     try {
+        const { searchParams } = new URL(request.url)
+        const sku = searchParams.get('sku')
+
+        if (sku) {
+            const product = await prisma.product.findUnique({
+                where: { sku },
+                include: { category: true }
+            })
+            return NextResponse.json(product)
+        }
+
         const products = await prisma.product.findMany({
             include: { category: true },
             orderBy: { createdAt: 'desc' }

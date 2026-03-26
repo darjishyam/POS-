@@ -13,8 +13,12 @@ import {
     ArrowDownRight,
     TrendingDown,
     Calculator,
-    MoreHorizontal
+    MoreHorizontal,
+    Download
 } from 'lucide-react'
+import * as XLSX from 'xlsx'
+import { jsPDF } from 'jspdf'
+import autoTable from 'jspdf-autotable'
 
 interface Category {
     id: string
@@ -101,6 +105,64 @@ export default function ExpensesClient() {
 
     const totalExpenses = (expenses || []).reduce((sum, e) => sum + (e?.amount || 0), 0)
 
+    const exportToCSV = () => {
+        const headers = ['Date', 'Category', 'Description', 'Amount']
+        const rows = expenses.map(e => [
+            format(new Date(e.date), 'yyyy-MM-dd'),
+            e.category?.name || 'Uncategorized',
+            e.description,
+            e.amount.toFixed(2)
+        ])
+        const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n")
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+        const url = URL.createObjectURL(blob)
+        const link = document.createElement("a")
+        link.setAttribute("href", url)
+        link.setAttribute("download", `BardPOS_Expenses_${new Date().toISOString().split('T')[0]}.csv`)
+        link.click()
+        toast.success('Expenses Exported to CSV')
+    }
+
+    const exportToExcel = () => {
+        const worksheet = XLSX.utils.json_to_sheet(expenses.map(e => ({
+            'Date': format(new Date(e.date), 'yyyy-MM-dd'),
+            'Category': e.category?.name || 'Uncategorized',
+            'Description': e.description,
+            'Amount': e.amount
+        })))
+        const workbook = XLSX.utils.book_new()
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Expenses")
+        XLSX.writeFile(workbook, `BardPOS_Expenses_${new Date().toISOString().split('T')[0]}.xlsx`)
+        toast.success('Expenses Exported to Excel')
+    }
+
+    const exportToPDF = () => {
+        const doc = new jsPDF() as any
+        doc.setFontSize(20)
+        doc.text('BardPOS Operating Expenses Ledger', 14, 22)
+        doc.setFontSize(11)
+        doc.setTextColor(100)
+        doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 30)
+        
+        const tableData = expenses.map(e => [
+            format(new Date(e.date), 'MMM dd, yyyy'),
+            e.category?.name || 'Uncategorized',
+            e.description,
+            `₹${e.amount.toFixed(2)}`
+        ])
+
+        autoTable(doc, {
+            head: [['Date', 'Category', 'Description', 'Amount']],
+            body: tableData,
+            startY: 40,
+            theme: 'grid',
+            headStyles: { fillColor: [16, 185, 129] }
+        })
+
+        doc.save(`BardPOS_Expenses_${new Date().toISOString().split('T')[0]}.pdf`)
+        toast.success('Expenses Exported to PDF')
+    }
+
     return (
         <div className="p-8 md:p-12 font-sans selection:bg-emerald-100 min-h-screen bg-transparent">
             <Toaster position="bottom-right" />
@@ -119,6 +181,34 @@ export default function ExpensesClient() {
                     </div>
 
                     <div className="flex items-center gap-6">
+                        <div className="flex items-center gap-3">
+                            <button 
+                                onClick={exportToCSV}
+                                title="Export CSV"
+                                className="p-5 bg-white hover:bg-emerald-50 text-slate-400 hover:text-emerald-600 rounded-2xl transition-all border border-slate-100 hover:border-emerald-200 shadow-sm group"
+                            >
+                                <span className="text-[10px] font-black uppercase tracking-widest mr-2 hidden md:inline">CSV</span>
+                                <Download className="w-4 h-4 group-hover:translate-y-1 transition-all inline" />
+                            </button>
+
+                            <button 
+                                onClick={exportToExcel}
+                                title="Export Excel"
+                                className="p-5 bg-white hover:bg-blue-50 text-slate-400 hover:text-blue-600 rounded-2xl transition-all border border-slate-100 hover:border-blue-200 shadow-sm group"
+                            >
+                                <span className="text-[10px] font-black uppercase tracking-widest mr-2 hidden md:inline">Excel</span>
+                                <FileText className="w-4 h-4 group-hover:translate-y-1 transition-all inline" />
+                            </button>
+
+                            <button 
+                                onClick={exportToPDF}
+                                title="Export PDF"
+                                className="p-5 bg-white hover:bg-rose-50 text-slate-400 hover:text-rose-600 rounded-2xl transition-all border border-slate-100 hover:border-rose-200 shadow-sm group"
+                            >
+                                <span className="text-[10px] font-black uppercase tracking-widest mr-2 hidden md:inline">PDF</span>
+                                <FileText className="w-4 h-4 group-hover:translate-y-1 transition-all inline" />
+                            </button>
+                        </div>
                         <div className="text-right">
                             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Total Periodic Outflow</p>
                             <p className="text-3xl font-black text-gray-950 italic tracking-tighter">₹{totalExpenses.toLocaleString(undefined, { minimumFractionDigits: 2 })}

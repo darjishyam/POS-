@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { toast, Toaster } from 'react-hot-toast'
 import { 
     Package, 
@@ -17,8 +18,13 @@ import {
     ShoppingCart,
     MapPin,
     Sparkles,
-    IndianRupee
+    IndianRupee,
+    Download,
+    FileText
 } from 'lucide-react'
+import * as XLSX from 'xlsx'
+import { jsPDF } from 'jspdf'
+import autoTable from 'jspdf-autotable'
 
 interface Product {
     id: string
@@ -65,6 +71,8 @@ export default function PurchasesClient() {
     const [loading, setLoading] = useState(true)
     const [submitting, setSubmitting] = useState(false)
     const [search, setSearch] = useState('')
+    const searchParams = useSearchParams()
+    const productIdFromUrl = searchParams.get('productId')
 
     // Form states
     const [supplierId, setSupplierId] = useState('')
@@ -77,6 +85,17 @@ export default function PurchasesClient() {
     useEffect(() => {
         fetchData()
     }, [])
+
+    useEffect(() => {
+        if (productIdFromUrl && products.length > 0 && !isModalOpen && items[0]?.productId === '') {
+            const product = products.find(p => p.id === productIdFromUrl)
+            if (product) {
+                setItems([{ productId: productIdFromUrl, quantity: 1, unitCost: 0, syncPrice: false, newPrice: 0 }])
+                setIsModalOpen(true)
+                toast.success(`Replenishing ${product.name}`)
+            }
+        }
+    }, [productIdFromUrl, products, isModalOpen])
 
     const fetchData = async () => {
         try {
@@ -105,6 +124,76 @@ export default function PurchasesClient() {
         (p?.supplier?.name || '').toLowerCase().includes(search.toLowerCase()) || 
         (p?.referenceNumber || '').toLowerCase().includes(search.toLowerCase())
     )
+
+    const exportToCSV = () => {
+        const headers = ['Date', 'Supplier', 'Reference', 'Status', 'Total', 'Paid', 'Due']
+        const rows = filteredPurchases.map(p => {
+            const due = p.totalAmount - (p.amountPaid || 0)
+            return [
+                new Date(p.createdAt).toLocaleDateString(),
+                p.supplier.name,
+                p.referenceNumber || 'N/A',
+                p.status,
+                p.totalAmount.toFixed(2),
+                (p.amountPaid || 0).toFixed(2),
+                due.toFixed(2)
+            ]
+        })
+        const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n")
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+        const url = URL.createObjectURL(blob)
+        const link = document.createElement("a")
+        link.setAttribute("href", url)
+        link.setAttribute("download", `BardPOS_Purchases_${new Date().toISOString().split('T')[0]}.csv`)
+        link.click()
+        toast.success('Purchases Exported to CSV')
+    }
+
+    const exportToExcel = () => {
+        const worksheet = XLSX.utils.json_to_sheet(filteredPurchases.map(p => ({
+            'Date': new Date(p.createdAt).toLocaleDateString(),
+            'Supplier': p.supplier.name,
+            'Reference': p.referenceNumber || 'N/A',
+            'Status': p.status,
+            'Total Amount': p.totalAmount,
+            'Amount Paid': p.amountPaid || 0,
+            'Balanced Due': p.totalAmount - (p.amountPaid || 0)
+        })))
+        const workbook = XLSX.utils.book_new()
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Purchases")
+        XLSX.writeFile(workbook, `BardPOS_Purchases_${new Date().toISOString().split('T')[0]}.xlsx`)
+        toast.success('Purchases Exported to Excel')
+    }
+
+    const exportToPDF = () => {
+        const doc = new jsPDF() as any
+        doc.setFontSize(20)
+        doc.text('BardPOS Procurement Ledger', 14, 22)
+        doc.setFontSize(11)
+        doc.setTextColor(100)
+        doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 30)
+        
+        const tableData = filteredPurchases.map(p => [
+            new Date(p.createdAt).toLocaleDateString(),
+            p.supplier.name,
+            p.referenceNumber || 'N/A',
+            p.status,
+            `₹${p.totalAmount.toFixed(2)}`,
+            `₹${(p.amountPaid || 0).toFixed(2)}`,
+            `₹${(p.totalAmount - (p.amountPaid || 0)).toFixed(2)}`
+        ])
+
+        autoTable(doc, {
+            head: [['Date', 'Supplier', 'Reference', 'Status', 'Total', 'Paid', 'Due']],
+            body: tableData,
+            startY: 40,
+            theme: 'grid',
+            headStyles: { fillColor: [16, 185, 129] }
+        })
+
+        doc.save(`BardPOS_Purchases_${new Date().toISOString().split('T')[0]}.pdf`)
+        toast.success('Purchases Exported to PDF')
+    }
 
     const addItem = () => {
         setItems([...items, { productId: '', quantity: 1, unitCost: 0, syncPrice: false, newPrice: 0 }])
@@ -268,6 +357,34 @@ export default function PurchasesClient() {
                     </div>
 
                     <div className="flex items-center gap-6">
+                        <div className="flex items-center gap-3">
+                            <button 
+                                onClick={exportToCSV}
+                                title="Export CSV"
+                                className="p-5 bg-white hover:bg-emerald-50 text-slate-400 hover:text-emerald-600 rounded-2xl transition-all border border-slate-100 hover:border-emerald-200 shadow-sm group"
+                            >
+                                <span className="text-[10px] font-black uppercase tracking-widest mr-2 hidden md:inline">CSV</span>
+                                <Download className="w-4 h-4 group-hover:translate-y-1 transition-all inline" />
+                            </button>
+
+                            <button 
+                                onClick={exportToExcel}
+                                title="Export Excel"
+                                className="p-5 bg-white hover:bg-blue-50 text-slate-400 hover:text-blue-600 rounded-2xl transition-all border border-slate-100 hover:border-blue-200 shadow-sm group"
+                            >
+                                <span className="text-[10px] font-black uppercase tracking-widest mr-2 hidden md:inline">Excel</span>
+                                <FileText className="w-4 h-4 group-hover:translate-y-1 transition-all inline" />
+                            </button>
+
+                            <button 
+                                onClick={exportToPDF}
+                                title="Export PDF"
+                                className="p-5 bg-white hover:bg-rose-50 text-slate-400 hover:text-rose-600 rounded-2xl transition-all border border-slate-100 hover:border-rose-200 shadow-sm group"
+                            >
+                                <span className="text-[10px] font-black uppercase tracking-widest mr-2 hidden md:inline">PDF</span>
+                                <FileText className="w-4 h-4 group-hover:translate-y-1 transition-all inline" />
+                            </button>
+                        </div>
                         <div className="text-right">
                             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Total Procurement Vol</p>
                             <p className="text-3xl font-black text-gray-950 italic tracking-tighter">₹{(purchases || []).reduce((s, p) => s + (p?.totalAmount || 0), 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}

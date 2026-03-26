@@ -16,15 +16,20 @@ import {
     Calendar,
     Hash,
     Search,
-    List
+    List,
+    Camera,
+    Zap,
+    MessageSquare,
+    Share2
 } from 'lucide-react'
 import Link from 'next/link'
 import { toast, Toaster } from 'react-hot-toast'
 import { useSettings } from '@/context/SettingsContext'
+import BarcodeScanner from '@/components/BarcodeScanner'
 
 export default function CheckoutClient() {
     const { settings } = useSettings()
-    const { cart, totalAmount: subtotal, clearCart } = useCart()
+    const { cart, addToCart, totalAmount: subtotal, clearCart } = useCart()
     const { user, role } = useAuth()
     const [status, setStatus] = useState<'idle' | 'processing' | 'success'>('idle')
     const [orderData, setOrderData] = useState<any>(null)
@@ -42,6 +47,8 @@ export default function CheckoutClient() {
     const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null)
     const [me, setMe] = useState<any>(null)
     const [errors, setErrors] = useState<Record<string, string>>({})
+    const [isScannerOpen, setIsScannerOpen] = useState(false)
+    const [lastScannedSku, setLastScannedSku] = useState<string | null>(null)
 
     const validateCard = () => {
         const newErrors: Record<string, string> = {}
@@ -96,6 +103,53 @@ export default function CheckoutClient() {
             if (role !== 'admin') {
                 setSelectedCustomerId(null)
             }
+        }
+    }
+
+    const handleScan = async (decodedText: string) => {
+        const cleanSku = decodedText.trim()
+        console.log('SCAN DETECTED:', cleanSku)
+
+        // Prevent duplicate immediate scans of the same SKU
+        if (cleanSku === lastScannedSku) return
+        
+        setLastScannedSku(cleanSku)
+        setTimeout(() => setLastScannedSku(null), 2000)
+
+        try {
+            const res = await fetch(`/api/products?sku=${encodeURIComponent(cleanSku)}`)
+            console.log('FETCH STATUS:', res.status)
+            
+            if (res.ok) {
+                const product = await res.json()
+                console.log('PRODUCT FOUND:', product)
+                if (product) {
+                    addToCart(product)
+                    toast.success(`Asset identified: ${product.name}`, {
+                        icon: '🎯',
+                        style: {
+                            borderRadius: '1.5rem',
+                            background: '#059669',
+                            color: '#fff',
+                            fontWeight: '900',
+                            fontSize: '10px'
+                        }
+                    })
+                } else {
+                    toast.error(`Unrecognized Asset SKU: ${decodedText}`, {
+                        icon: '⚠️',
+                        style: {
+                            borderRadius: '1.5rem',
+                            background: '#991b1b',
+                            color: '#fff',
+                            fontWeight: '900',
+                            fontSize: '10px'
+                        }
+                    })
+                }
+            }
+        } catch (error) {
+            console.error('Scan lookup failure', error)
         }
     }
 
@@ -211,13 +265,38 @@ export default function CheckoutClient() {
                             <ArrowLeft className="w-4 h-4" />
                             Return to Matrix
                         </Link>
-                        <button
-                            onClick={() => window.print()}
-                            className="inline-flex items-center gap-2 px-6 py-3 bg-white border-2 border-slate-100 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-600 hover:border-emerald-500 hover:text-emerald-600 transition-all shadow-sm"
-                        >
-                            <Printer className="w-4 h-4" />
-                            Dispatch Hard-Copy
-                        </button>
+                        <div className="flex gap-4">
+                            <button
+                                onClick={() => {
+                                    const receiptUrl = `${window.location.origin}/receipt/${orderData.id}`
+                                    const itemsSummary = orderData.items
+                                        .map((item: any) => `${item.quantity}x ${item.product?.name || 'Asset'}: ${settings.currencySymbol}${(item.price * item.quantity).toFixed(2)}`)
+                                        .join('\n')
+                                    
+                                    const text = `🧾 BARDPOS RECEIPT #${orderData.id.slice(-8).toUpperCase()}\n` +
+                                                 `-----------------------------------\n` +
+                                                 `${itemsSummary}\n` +
+                                                 `-----------------------------------\n` +
+                                                 `TOTAL AUTHORIZED: ${settings.currencySymbol}${orderData.totalAmount.toFixed(2)}\n` +
+                                                 `-----------------------------------\n` +
+                                                 `🔗 View Secure Digital Ledger:\n${receiptUrl}\n\n` +
+                                                 `Thank you for your strategy! 🚀`
+                                                 
+                                    window.open(`https://wa.me/${orderData.customer?.phone || ''}?text=${encodeURIComponent(text)}`, '_blank')
+                                }}
+                                className="inline-flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-500 transition-all shadow-lg shadow-emerald-500/20"
+                            >
+                                <MessageSquare className="w-4 h-4" />
+                                Push to WhatsApp
+                            </button>
+                            <button
+                                onClick={() => window.print()}
+                                className="inline-flex items-center gap-2 px-6 py-3 bg-white border-2 border-slate-100 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-600 hover:border-emerald-500 hover:text-emerald-600 transition-all shadow-sm"
+                            >
+                                <Printer className="w-4 h-4" />
+                                Dispatch Hard-Copy
+                            </button>
+                        </div>
                     </div>
 
                     {/* Invoice Card */}
@@ -335,7 +414,12 @@ export default function CheckoutClient() {
     return (
         <div className="min-h-screen bg-transparent p-8 md:p-12 font-sans selection:bg-emerald-100">
             <Toaster position="bottom-right" />
-
+            {isScannerOpen && (
+                <BarcodeScanner 
+                    onScan={handleScan} 
+                    onClose={() => setIsScannerOpen(false)} 
+                />
+            )}
             <div className="max-w-6xl mx-auto">
                 <div className="flex items-center gap-6 mb-16">
                     <Link href="/" className="p-4 hover:bg-white rounded-2xl transition-all text-slate-400 hover:text-emerald-600 shadow-sm border border-transparent hover:border-emerald-100">
@@ -351,10 +435,19 @@ export default function CheckoutClient() {
                     {/* Items List */}
                     <div className="lg:col-span-7 space-y-8">
                         <div className="bg-white rounded-[3.5rem] p-10 border border-gray-100 shadow-xl shadow-gray-100/30">
-                            <h3 className="text-xl font-black text-slate-900 tracking-tight uppercase italic mb-8 flex items-center gap-3">
-                                <ShoppingBag className="w-5 h-5 text-emerald-600" />
-                                Order Registry
-                            </h3>
+                            <div className="flex items-center justify-between mb-8">
+                                <div>
+                                    <h3 className="text-2xl font-black text-slate-950 tracking-tighter italic uppercase">Order Registry</h3>
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1 italic">{cart.length} Unique Assets Secured</p>
+                                </div>
+                                <button 
+                                    onClick={() => setIsScannerOpen(true)}
+                                    className="flex items-center gap-3 px-6 py-4 bg-emerald-500/10 hover:bg-emerald-500 text-emerald-600 hover:text-white rounded-[2rem] border border-emerald-500/20 transition-all group font-black uppercase text-[10px] tracking-widest"
+                                >
+                                    <Camera className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                                    <span>Scan Protocol</span>
+                                </button>
+                            </div>
 
                             <div className="space-y-6">
                                 {cart.map((item) => (

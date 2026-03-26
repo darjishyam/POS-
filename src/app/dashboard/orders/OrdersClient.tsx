@@ -22,8 +22,12 @@ import {
     Plus,
     RotateCcw,
     X,
-    IndianRupee
+    IndianRupee,
+    Download
 } from 'lucide-react'
+import * as XLSX from 'xlsx'
+import { jsPDF } from 'jspdf'
+import autoTable from 'jspdf-autotable'
 import { toast, Toaster } from 'react-hot-toast'
 import { format } from 'date-fns'
 import { useSearchParams, useRouter } from 'next/navigation'
@@ -169,6 +173,70 @@ export default function OrdersClient() {
         return matchesSearch && matchesStatus
     })
 
+    const exportToCSV = () => {
+        const headers = ['Order ID', 'Date', 'Customer', 'Status', 'Payment Method', 'Total Amount']
+        const rows = filteredOrders.map(o => [
+            o.id.toUpperCase(),
+            format(new Date(o.createdAt), 'yyyy-MM-dd HH:mm'),
+            o.customer?.name || 'Guest',
+            o.status,
+            o.paymentMethod,
+            o.totalAmount.toFixed(2)
+        ])
+        const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n")
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+        const url = URL.createObjectURL(blob)
+        const link = document.createElement("a")
+        link.setAttribute("href", url)
+        link.setAttribute("download", `BardPOS_Orders_${new Date().toISOString().split('T')[0]}.csv`)
+        link.click()
+        toast.success('Orders Exported to CSV')
+    }
+
+    const exportToExcel = () => {
+        const worksheet = XLSX.utils.json_to_sheet(filteredOrders.map(o => ({
+            'Order ID': o.id.toUpperCase(),
+            'Date': format(new Date(o.createdAt), 'yyyy-MM-dd HH:mm'),
+            'Customer': o.customer?.name || 'Guest',
+            'Status': o.status,
+            'Payment Method': o.paymentMethod,
+            'Total Amount': o.totalAmount
+        })))
+        const workbook = XLSX.utils.book_new()
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Orders")
+        XLSX.writeFile(workbook, `BardPOS_Orders_${new Date().toISOString().split('T')[0]}.xlsx`)
+        toast.success('Orders Exported to Excel')
+    }
+
+    const exportToPDF = () => {
+        const doc = new jsPDF() as any
+        doc.setFontSize(20)
+        doc.text('BardPOS Sales Ledger', 14, 22)
+        doc.setFontSize(11)
+        doc.setTextColor(100)
+        doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 30)
+        
+        const tableData = filteredOrders.map(o => [
+            o.id.slice(-8).toUpperCase(),
+            format(new Date(o.createdAt), 'MMM dd, HH:mm'),
+            o.customer?.name || 'Guest',
+            o.status,
+            o.paymentMethod,
+            `₹${o.totalAmount.toFixed(2)}`
+        ])
+
+        autoTable(doc, {
+            head: [['ID', 'Date', 'Customer', 'Status', 'Method', 'Total']],
+            body: tableData,
+            startY: 40,
+            theme: 'grid',
+            headStyles: { fillColor: [16, 185, 129] }
+        })
+
+        doc.save(`BardPOS_Orders_${new Date().toISOString().split('T')[0]}.pdf`)
+        toast.success('Orders Exported to PDF')
+    }
+
     const titleSuffix = statusFilter 
         ? (statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1) + 's')
         : 'History'
@@ -193,6 +261,34 @@ export default function OrdersClient() {
                     </div>
 
                     <div className="flex items-center gap-6">
+                        <div className="flex items-center gap-3">
+                            <button 
+                                onClick={exportToCSV}
+                                title="Export CSV"
+                                className="p-5 bg-white hover:bg-emerald-50 text-slate-400 hover:text-emerald-600 rounded-2xl transition-all border border-slate-100 hover:border-emerald-200 shadow-sm group"
+                            >
+                                <span className="text-[10px] font-black uppercase tracking-widest mr-2 hidden md:inline">CSV</span>
+                                <Download className="w-4 h-4 group-hover:translate-y-1 transition-all inline" />
+                            </button>
+
+                            <button 
+                                onClick={exportToExcel}
+                                title="Export Excel"
+                                className="p-5 bg-white hover:bg-blue-50 text-slate-400 hover:text-blue-600 rounded-2xl transition-all border border-slate-100 hover:border-blue-200 shadow-sm group"
+                            >
+                                <span className="text-[10px] font-black uppercase tracking-widest mr-2 hidden md:inline">Excel</span>
+                                <FileText className="w-4 h-4 group-hover:translate-y-1 transition-all inline" />
+                            </button>
+
+                            <button 
+                                onClick={exportToPDF}
+                                title="Export PDF"
+                                className="p-5 bg-white hover:bg-rose-50 text-slate-400 hover:text-rose-600 rounded-2xl transition-all border border-slate-100 hover:border-rose-200 shadow-sm group"
+                            >
+                                <span className="text-[10px] font-black uppercase tracking-widest mr-2 hidden md:inline">PDF</span>
+                                <FileText className="w-4 h-4 group-hover:translate-y-1 transition-all inline" />
+                            </button>
+                        </div>
                         <div className="text-right">
                             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">{statusFilter ? 'Subtotal' : 'Gross Inflow'}</p>
                             <div className="flex items-center gap-2 text-3xl font-black text-gray-950 italic tracking-tighter">
