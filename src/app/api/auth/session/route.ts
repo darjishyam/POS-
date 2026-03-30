@@ -27,14 +27,35 @@ export async function POST(request: Request) {
 
     if (email) {
       const prisma = (await import('@/lib/prisma')).default;
-      await prisma.user.upsert({
+      const userName = name || email.split('@')[0];
+
+      // Dual-Identity Sync Protocol
+      // 1. Sync Authentication Matrix (User Table)
+      const userResult = await prisma.user.upsert({
         where: { email },
-        update: { name: name || email.split('@')[0] },
+        update: { 
+          name: userName,
+          isVerified: decodedToken.email_verified || false
+          // Note: We don't update role here to avoid demoting admins
+        },
         create: {
           email,
-          name: name || email.split('@')[0],
+          name: userName,
           password: 'LINKED_TO_FIREBASE',
-          isVerified: decodedToken.email_verified || false
+          isVerified: decodedToken.email_verified || false,
+          role: 'USER' // Default to non-personnel
+        }
+      });
+
+      // 2. Sync Sales Matrix (Customer Table)
+      // This ensures any person who logins is immediately available as a Customer in the POS
+      await prisma.customer.upsert({
+        where: { email },
+        update: { name: userName },
+        create: {
+          email,
+          name: userName,
+          customerGroupId: null // Default group
         }
       });
     }

@@ -175,7 +175,6 @@ export default function ProductForm({ initialData, onSave, onCancel }: ProductFo
 
     return (
         <form onSubmit={handleSubmit} className="p-8 md:p-12 font-sans selection:bg-emerald-100 max-w-7xl mx-auto space-y-12">
-            <Toaster position="bottom-right" />
             
             <div className="flex items-center justify-between border-b border-gray-100 pb-8">
                 <div className="space-y-2">

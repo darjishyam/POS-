@@ -230,7 +230,7 @@ export default function OrdersClient() {
             body: tableData,
             startY: 40,
             theme: 'grid',
-            headStyles: { fillColor: [16, 185, 129] }
+            headStyles: { fillColor: [37, 99, 235] }
         })
 
         doc.save(`BardPOS_Orders_${new Date().toISOString().split('T')[0]}.pdf`)
@@ -244,19 +244,19 @@ export default function OrdersClient() {
     const totalRevenue = filteredOrders.reduce((sum, o) => sum + (o?.totalAmount || 0), 0)
 
     return (
-        <div className="p-8 md:p-12 font-sans selection:bg-emerald-100 min-h-screen bg-transparent">
+        <div className="p-8 md:p-12 font-sans selection:bg-blue-100 min-h-screen bg-transparent">
             <Toaster position="bottom-right" />
             
             <div className="relative z-10">
                 {/* Module Header */}
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12 border-b border-gray-200 pb-10">
                     <div className="space-y-4">
-                        <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500/10 rounded-full border border-emerald-500/20 shadow-[0_4px_12px_-4px_rgba(16,185,129,0.2)]">
-                            <Receipt className="w-3 h-3 text-emerald-600" />
-                            <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Transaction Audit Trail</span>
+                        <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500/10 rounded-full border border-blue-500/20 shadow-sm">
+                            <Receipt className="w-3 h-3 text-blue-600" />
+                            <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest leading-none">Transaction Audit Trail</span>
                         </div>
-                        <h2 className="text-6xl font-black text-gray-950 tracking-tighter leading-none italic">
-                            Sales <span className="text-emerald-600 NOT-italic font-black">{titleSuffix}</span>
+                        <h2 className="text-7xl font-black text-slate-950 tracking-tighter leading-none italic uppercase">
+                            Sales <span className="text-blue-600 NOT-italic font-black">{titleSuffix}</span>
                         </h2>
                     </div>
 
@@ -264,8 +264,8 @@ export default function OrdersClient() {
                         <div className="flex items-center gap-3">
                             <button 
                                 onClick={exportToCSV}
-                                title="Export CSV"
-                                className="p-5 bg-white hover:bg-emerald-50 text-slate-400 hover:text-emerald-600 rounded-2xl transition-all border border-slate-100 hover:border-emerald-200 shadow-sm group"
+                                title="Export CSV Ledger"
+                                className="p-5 bg-white hover:bg-blue-50 text-slate-400 hover:text-blue-600 rounded-2xl transition-all border border-slate-100 hover:border-blue-200 shadow-sm group"
                             >
                                 <span className="text-[10px] font-black uppercase tracking-widest mr-2 hidden md:inline">CSV</span>
                                 <Download className="w-4 h-4 group-hover:translate-y-1 transition-all inline" />
@@ -292,8 +292,8 @@ export default function OrdersClient() {
                         <div className="text-right">
                             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">{statusFilter ? 'Subtotal' : 'Gross Inflow'}</p>
                             <div className="flex items-center gap-2 text-3xl font-black text-gray-950 italic tracking-tighter">
-                                <span className="text-emerald-600 NOT-italic">₹</span>
-                                {totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                <span className="text-blue-600 NOT-italic font-black">₹</span>
+                                {totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 0 })}
                             </div>
                         </div>
                         <div className="h-12 w-px bg-gray-200" />
@@ -312,7 +312,7 @@ export default function OrdersClient() {
                         <input
                             type="text"
                             placeholder="Search transaction matrix (ID, Customer, Method)..."
-                            className="w-full bg-slate-100/50 border-none rounded-2xl py-4 pl-12 pr-6 font-bold text-slate-800 focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all shadow-inner"
+                            className="w-full bg-slate-50 border-none rounded-2xl py-4 pl-12 pr-6 font-bold text-slate-800 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all shadow-inner"
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                         />
@@ -331,7 +331,7 @@ export default function OrdersClient() {
                         <button 
                             onClick={() => router.push('/dashboard/orders?status=completed')}
                             className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                                statusFilter === 'completed' ? 'bg-white shadow-sm text-emerald-600 border border-emerald-100 italic' : 'text-slate-400 hover:text-slate-600'
+                                statusFilter === 'completed' ? 'bg-white shadow-sm text-blue-600 border border-blue-100 italic' : 'text-slate-400 hover:text-slate-600'
                             }`}
                         >
                             COMPLETED
@@ -381,7 +381,7 @@ export default function OrdersClient() {
                                     <tr key={order.id} className="group hover:bg-indigo-50/30 transition-colors">
                                         <td className="px-8 py-6">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-emerald-600 group-hover:text-white transition-all shadow-sm">
+                                                <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-blue-600 group-hover:text-white transition-all shadow-sm">
                                                     <Hash className="w-5 h-5" />
                                                 </div>
                                                 <div>
@@ -392,7 +392,7 @@ export default function OrdersClient() {
                                         </td>
                                         <td className="px-8 py-6">
                                             <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border font-black text-[9px] uppercase tracking-widest ${
-                                                order.status === 'COMPLETED' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+                                                order.status === 'COMPLETED' ? 'bg-blue-50 text-blue-600 border-blue-100' :
                                                 order.status === 'RETURN_REQUESTED' ? 'bg-amber-50 text-amber-600 border-amber-100 animate-pulse' :
                                                 order.status === 'RETURNED' ? 'bg-blue-50 text-blue-600 border-blue-100' :
                                                 'bg-slate-50 text-slate-500 border-slate-100'
@@ -412,7 +412,7 @@ export default function OrdersClient() {
                                         <td className="px-8 py-6">
                                             <div className="flex items-center gap-2">
                                                 <div className={`p-1.5 rounded-lg ${
-                                                    order.paymentMethod === 'CASH' ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-600'
+                                                    order.paymentMethod === 'CASH' ? 'bg-blue-50 text-blue-600' : 'bg-blue-50 text-blue-600'
                                                 }`}>
                                                     <CreditCard className="w-3 h-3" />
                                                 </div>
@@ -452,7 +452,7 @@ export default function OrdersClient() {
                                                                 toast.success('Draft Session Restored')
                                                                 router.push('/checkout')
                                                             }}
-                                                            className="p-3 bg-emerald-500 text-white rounded-xl hover:bg-emerald-400 transition-colors shadow-lg shadow-emerald-500/20 group/resume"
+                                                            className="p-3 bg-blue-600 text-white rounded-xl hover:bg-blue-500 transition-colors shadow-lg shadow-blue-500/20 group/resume"
                                                             title="Resume Draft"
                                                         >
                                                             <ShoppingCart className="w-4 h-4 group-hover/resume:scale-110 transition-transform" />
@@ -481,7 +481,7 @@ export default function OrdersClient() {
                                                     </div>
                                                 )}
                                                 
-                                                <div className="flex items-center gap-2 group-hover:text-emerald-600 transition-colors">
+                                                <div className="flex items-center gap-2 group-hover:text-blue-600 transition-colors">
                                                     <ArrowUpRight className="w-4 h-4" />
                                                     <span className="text-2xl font-black text-gray-950 tracking-tighter italic">
                                                         ₹{order.totalAmount.toFixed(2)}

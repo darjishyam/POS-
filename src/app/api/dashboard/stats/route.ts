@@ -4,70 +4,83 @@ import { getRole } from '@/lib/roles'
 
 export const dynamic = 'force-dynamic'
 
-export async function GET() {
+export async function GET(request: Request) {
     try {
+        const { searchParams } = new URL(request.url)
+        const range = searchParams.get('range') || 'all'
+        
         const role = await getRole()
         const isAdmin = role === 'admin'
 
-        const today = new Date()
-        const startOfToday = new Date(today.setHours(0, 0, 0, 0))
+        // 0. Calculate Date Filter
+        const now = new Date()
+        let dateFilter: any = {}
+        
+        if (range === 'today') {
+            const startOfToday = new Date(now.setHours(0, 0, 0, 0))
+            dateFilter = { gte: startOfToday }
+        } else if (range === 'week') {
+            const startOfWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+            dateFilter = { gte: startOfWeek }
+        } else if (range === 'month') {
+            const startOfMonth = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+            dateFilter = { gte: startOfMonth }
+        }
+        // 'all' means empty dateFilter {}
 
-        // 1. Total Sales Today
-        const salesToday = await (prisma as any).order.aggregate({
-            where: { createdAt: { gte: startOfToday } },
+        // 1. Sales Stats
+        const salesStats = await (prisma as any).order.aggregate({
+            where: { createdAt: dateFilter },
             _sum: { totalAmount: true },
             _count: { id: true }
         })
 
-        // 2. Expenses (Admin Only)
-        let expensesTodaySum = 0
-        let totalExpensesAllTime = 0
+        // 2. Expenses
+        let expensesSum = 0
         if (isAdmin) {
-            const expensesToday = await (prisma as any).expense.aggregate({
-                where: { date: { gte: startOfToday } },
+            const expensesAgg = await (prisma as any).expense.aggregate({
+                where: { date: dateFilter },
                 _sum: { amount: true }
             })
-            expensesTodaySum = expensesToday._sum.amount || 0
-
-            const globalExpenses = await (prisma as any).expense.aggregate({
-                _sum: { amount: true }
-            })
-            totalExpensesAllTime = globalExpenses._sum.amount || 0
+            expensesSum = expensesAgg._sum.amount || 0
         }
 
-        // 3. COGS Today (Admin Only)
-        let totalCogsToday = 0
+        // 3. COGS Calculation
+        let totalCogs = 0
         if (isAdmin) {
-            const orderItemsToday = await (prisma as any).orderItem.findMany({
-                where: { order: { createdAt: { gte: startOfToday } } },
+            const orderItems = await (prisma as any).orderItem.findMany({
+                where: { order: { createdAt: dateFilter } },
                 include: { product: { include: { purchases: { take: 1, orderBy: { createdAt: 'desc' } } } } }
             })
 
-            totalCogsToday = orderItemsToday.reduce((sum: number, item: any) => {
+            totalCogs = orderItems.reduce((sum: number, item: any) => {
                 const unitCost = item.product.purchases[0]?.unitCost || item.price * 0.6
                 return sum + (unitCost * item.quantity)
             }, 0)
         }
 
-        // 4. Low Stock Count
+        // 4. Low Stock Count (Always Live Snapshot)
         const lowStockCount = await (prisma as any).product.count({
             where: { stock: { lte: 5 } }
         })
 
-        // 5. Total Customers
-        const totalCustomers = await (prisma as any).customer.count()
+        // 5. Total Customers (Filtered by Join Date if range is set)
+        const customerFilter = range === 'all' ? {} : { createdAt: dateFilter }
+        const totalCustomers = await (prisma as any).customer.count({
+            where: customerFilter
+        })
 
-        // 6. Recent Sales (last 5)
+        // 6. Recent Sales (Always Last 5)
         const recentSales = await (prisma as any).order.findMany({
             take: 5,
             orderBy: { createdAt: 'desc' },
             include: { customer: { select: { name: true } } }
         })
 
-        const revenue = salesToday._sum.totalAmount || 0
-        const profit = isAdmin ? revenue - (totalCogsToday + expensesTodaySum) : 0
-
-        // 7. Last 30 Days Sales Data (for chart)
+        const revenue = salesStats._sum.totalAmount || 0
+        const profit = isAdmin ? revenue - (totalCogs + expensesSum) : 0
+        
+        // 7. Last 30 Days Sales Data (for chart - always 30 days)
         const thirtyDaysAgo = new Date()
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
         
@@ -93,43 +106,41 @@ export async function GET() {
             }
         })
 
-        // 8. Purchase Totals (Admin Only)
+        // 8. Purchase Totals
         let totalPurchases = 0
         let totalPurchaseDue = 0
         let totalPurchaseReturn = 0
         if (isAdmin) {
             const purchaseStats = await (prisma as any).purchase.aggregate({
+                where: { createdAt: dateFilter },
                 _sum: { totalAmount: true, amountPaid: true }
             })
             const returnStats = await (prisma as any).purchaseReturn.aggregate({
+                where: { createdAt: dateFilter },
                 _sum: { totalRefund: true }
             })
             totalPurchases = purchaseStats._sum.totalAmount || 0
             const totalPaid = purchaseStats._sum.amountPaid || 0
             totalPurchaseReturn = returnStats._sum.totalRefund || 0
             
-            // Due = Total - Paid - Refunded (Returns reduce the debt)
             totalPurchaseDue = Math.max(0, totalPurchases - totalPaid - totalPurchaseReturn)
         }
 
         // 9. Sales Return Totals
         const salesReturnStats = await (prisma as any).salesReturn.aggregate({
+            where: { createdAt: dateFilter },
             _sum: { totalRefund: true }
         })
         const totalSalesReturn = salesReturnStats._sum.totalRefund || 0
 
-        // 10. Global Sales
-        const globalSalesStats = await (prisma as any).order.aggregate({
-            _sum: { totalAmount: true }
-        })
-        const totalSalesAllTime = globalSalesStats._sum.totalAmount || 0
+        // 10. All-Time Stats for Comparison (Optional)
+        const globalSales = await (prisma as any).order.aggregate({ _sum: { totalAmount: true } })
 
         return NextResponse.json({
-            revenueToday: revenue,
-            expensesToday: isAdmin ? expensesTodaySum : 0,
-            totalExpenses: isAdmin ? totalExpensesAllTime : 0,
-            profitToday: profit,
-            ordersToday: salesToday._count.id || 0,
+            revenue: revenue,
+            expenses: expensesSum,
+            profit: profit,
+            ordersCount: salesStats._count.id || 0,
             lowStockCount,
             totalCustomers,
             recentSales,
@@ -138,8 +149,8 @@ export async function GET() {
             totalPurchaseDue,
             totalPurchaseReturn,
             totalSalesReturn,
-            totalSalesAllTime,
-            netRevenue: revenue - expensesTodaySum
+            totalSalesAllTime: globalSales._sum.totalAmount || 0,
+            netRevenue: revenue - expensesSum
         })
     } catch (error) {
         console.error('Dashboard Stats Error:', error)

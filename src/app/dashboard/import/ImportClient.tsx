@@ -96,7 +96,6 @@ export default function ImportClient() {
 
     return (
         <div className="p-8 md:p-12 font-sans selection:bg-emerald-100 min-h-screen bg-transparent">
-            <Toaster position="bottom-right" />
             
             <div className="relative z-10">
                 {/* Module Header */}

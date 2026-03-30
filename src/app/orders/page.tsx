@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic'
 export default function MyOrdersPage() {
     return (
         <div className="min-h-screen bg-white">
-            <div className="max-w-7xl mx-auto px-6 md:px-12 pt-12">
+            <div className="w-full mx-auto px-6 lg:px-24 pt-12">
                 <StoreHeader />
                 <OrdersClient />
             </div>

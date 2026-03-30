@@ -20,7 +20,10 @@ import {
     Camera,
     Zap,
     MessageSquare,
-    Share2
+    Share2,
+    Cpu,
+    Target,
+    Activity
 } from 'lucide-react'
 import Link from 'next/link'
 import { toast, Toaster } from 'react-hot-toast'
@@ -49,6 +52,7 @@ export default function CheckoutClient() {
     const [errors, setErrors] = useState<Record<string, string>>({})
     const [isScannerOpen, setIsScannerOpen] = useState(false)
     const [lastScannedSku, setLastScannedSku] = useState<string | null>(null)
+    const [mounted, setMounted] = useState(false)
 
     const validateCard = () => {
         const newErrors: Record<string, string> = {}
@@ -68,6 +72,7 @@ export default function CheckoutClient() {
     }
 
     useEffect(() => {
+        setMounted(true)
         setWindowSize({ width: window.innerWidth, height: window.innerHeight })
         fetchAgents()
         fetchCustomers()
@@ -179,7 +184,9 @@ export default function CheckoutClient() {
 
     const groupDiscountPercent = selectedCustomer?.customerGroup?.discount || 0
     const discountAmount = (subtotal * groupDiscountPercent) / 100
-    const finalTotal = subtotal - discountAmount
+    const taxableAmount = subtotal - discountAmount
+    const taxAmount = (taxableAmount * (settings.taxRate || 0)) / 100
+    const finalTotal = taxableAmount + taxAmount
 
     useEffect(() => {
         // Restore payment intent from draft resumption if available
@@ -218,7 +225,8 @@ export default function CheckoutClient() {
                     upiId: paymentMethod === 'UPI' ? upiId : null,
                     agentId: selectedAgentId,
                     customerId: selectedCustomerId,
-                    discountAmount: discountAmount
+                    discountAmount: discountAmount,
+                    taxAmount: taxAmount
                 })
             })
 
@@ -234,7 +242,7 @@ export default function CheckoutClient() {
                     setOrderData(order);
                     setStatus('success')
                     clearCart()
-                    toast.success('System Asset Acquisition Complete')
+                    toast.success('System Asset Acquisition Complete', { duration: 4000 })
                 }
             } else {
                 toast.error('Authorization Protocol Failure')
@@ -248,7 +256,7 @@ export default function CheckoutClient() {
 
     if (status === 'success' && orderData) {
         return (
-            <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 md:p-12 font-sans selection:bg-emerald-100 animate-in fade-in duration-700">
+            <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 md:p-12 font-sans selection:bg-blue-100 animate-in fade-in duration-700">
                 <style dangerouslySetInnerHTML={{ __html: `
                     @media print {
                         body * { visibility: hidden; }
@@ -261,9 +269,9 @@ export default function CheckoutClient() {
                 <div className="max-w-3xl w-full space-y-8">
                     {/* Header Action */}
                     <div className="flex justify-between items-center no-print">
-                        <Link href="/" className="inline-flex items-center gap-2 text-slate-400 hover:text-emerald-600 transition-colors uppercase text-[10px] font-black tracking-widest">
+                        <Link href="/" className="inline-flex items-center gap-2 text-slate-400 hover:text-blue-600 transition-colors uppercase text-[10px] font-black tracking-widest">
                             <ArrowLeft className="w-4 h-4" />
-                            Return to Matrix
+                            Return to Matrix Hub
                         </Link>
                         <div className="flex gap-4">
                             <button
@@ -281,44 +289,43 @@ export default function CheckoutClient() {
                                                  `-----------------------------------\n` +
                                                  `🔗 View Secure Digital Ledger:\n${receiptUrl}\n\n` +
                                                  `Thank you for your strategy! 🚀`
-                                                 
                                     window.open(`https://wa.me/${orderData.customer?.phone || ''}?text=${encodeURIComponent(text)}`, '_blank')
                                 }}
-                                className="inline-flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-500 transition-all shadow-lg shadow-emerald-500/20"
+                                className="inline-flex items-center gap-2 px-8 py-4 bg-blue-600 text-white rounded-[2rem] text-[10px] font-black uppercase tracking-widest hover:bg-blue-500 transition-all shadow-2xl shadow-blue-500/20 active:scale-95 translate-y-0 hover:-translate-y-1"
                             >
                                 <MessageSquare className="w-4 h-4" />
                                 Push to WhatsApp
                             </button>
                             <button
                                 onClick={() => window.print()}
-                                className="inline-flex items-center gap-2 px-6 py-3 bg-white border-2 border-slate-100 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-600 hover:border-emerald-500 hover:text-emerald-600 transition-all shadow-sm"
+                                className="inline-flex items-center gap-2 px-8 py-4 bg-white border-2 border-slate-100 rounded-[2rem] text-[10px] font-black uppercase tracking-widest text-slate-400 hover:border-blue-600 hover:text-blue-600 transition-all shadow-lg shadow-slate-100 active:scale-95"
                             >
                                 <Printer className="w-4 h-4" />
-                                Dispatch Hard-Copy
+                                Dispatch Asset Proof
                             </button>
                         </div>
                     </div>
 
                     {/* Invoice Card */}
-                    <div id="invoice-content" className="bg-white rounded-[3.5rem] border border-gray-100 shadow-2xl overflow-hidden relative">
+                    <div id="invoice-content" className="bg-white rounded-[4rem] border border-gray-100 shadow-2xl overflow-hidden relative">
                         {/* Decorative Gradient Top */}
-                        <div className="h-4 bg-gradient-to-r from-emerald-500 via-teal-500 to-blue-600" />
+                        <div className="h-6 bg-gradient-to-r from-blue-600 via-sky-500 to-indigo-600 opacity-80" />
 
-                        <div className="p-10 md:p-16 space-y-12">
+                        <div className="p-12 md:p-20 space-y-16">
                             {/* Success Banner */}
-                            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8">
-                                <div className="space-y-4">
-                                    <div className="w-16 h-16 bg-emerald-500 text-white rounded-[1.5rem] flex items-center justify-center shadow-xl shadow-emerald-200 no-print animate-bounce">
-                                        <CheckCircle2 className="w-8 h-8" />
+                            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-10">
+                                <div className="space-y-6">
+                                    <div className="w-20 h-20 bg-blue-600 text-white rounded-[2.5rem] flex items-center justify-center shadow-2xl shadow-blue-400 no-print animate-in zoom-in duration-700">
+                                        <ShieldCheck className="w-10 h-10" />
                                     </div>
-                                    <h1 className="text-4xl font-black text-slate-950 tracking-tighter italic leading-none">Order <br /><span className="text-emerald-600 NOT-italic font-black">Authorized.</span></h1>
+                                    <h1 className="text-6xl font-black text-slate-950 tracking-tighter italic leading-none uppercase">Order <br /><span className="text-blue-600 NOT-italic">Authorized.</span></h1>
                                 </div>
-                                <div className="text-right space-y-2">
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Authentication ID</p>
-                                    <p className="text-lg font-mono font-black text-slate-900 tracking-tighter uppercase">#{orderData.id.slice(-12)}</p>
-                                    <div className="flex items-center justify-end gap-2 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full uppercase tracking-widest">
-                                        <ShieldCheck className="w-3 h-3" />
-                                        Verified Hash
+                                <div className="text-right space-y-3">
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em] leading-none">Authentication Signature</p>
+                                    <p className="text-xl font-mono font-black text-slate-950 tracking-tighter uppercase tabular-nums">#{orderData.id.slice(-12)}</p>
+                                    <div className="flex items-center justify-end gap-2 text-[9px] font-black text-blue-600 bg-blue-50 px-4 py-1.5 rounded-full uppercase tracking-widest border border-blue-100">
+                                        <Zap className="w-3 h-3 fill-blue-600" />
+                                        Verified Protocol
                                     </div>
                                 </div>
                             </div>
@@ -328,14 +335,14 @@ export default function CheckoutClient() {
                             {/* Details Grid */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
                                 <div className="space-y-4">
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] flex items-center gap-2">
                                         <Calendar className="w-3 h-3" />
                                         Temporal Signature
                                     </p>
-                                    <p className="text-sm font-bold text-slate-800">{new Date(orderData.createdAt).toLocaleString()}</p>
+                                    <p className="text-sm font-bold text-slate-800">{mounted ? new Date(orderData.createdAt).toLocaleString() : '--'}</p>
                                 </div>
                                 <div className="space-y-4 md:text-right">
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center md:justify-end gap-2">
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] flex items-center md:justify-end gap-2">
                                         <CreditCard className="w-3 h-3" />
                                         Protocol Authorized
                                     </p>
@@ -344,27 +351,27 @@ export default function CheckoutClient() {
                             </div>
 
                             {/* Itemized Assets */}
-                            <div className="space-y-6">
-                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic">Acquired Assets</p>
+                            <div className="space-y-8">
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em] italic">Acquired Assets</p>
                                 <div className="space-y-4">
                                     {orderData.items.map((item: any) => (
-                                        <div key={item.id} className="flex justify-between items-center py-6 border-b border-slate-50 last:border-0 group">
-                                            <div className="flex gap-4 items-center">
-                                                <div className="w-16 h-16 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-center overflow-hidden group-hover:scale-105 transition-transform">
+                                        <div key={item.id} className="flex justify-between items-center py-8 border-b border-slate-50 last:border-0 group">
+                                            <div className="flex gap-6 items-center">
+                                                <div className="w-20 h-20 bg-slate-50 rounded-3xl border border-slate-100 flex items-center justify-center overflow-hidden group-hover:scale-105 transition-transform">
                                                     {item.product?.image ? (
-                                                        <img src={item.product.image} className="w-full h-full object-cover" alt={item.product.name} />
+                                                        <img src={item.product.image} className="w-full h-full object-cover grayscale-[0.3] group-hover:grayscale-0 transition-all duration-500" alt={item.product.name} />
                                                     ) : (
-                                                        <ShoppingBag className="w-6 h-6 text-slate-200" />
+                                                        <ShoppingBag className="w-8 h-8 text-slate-200" />
                                                     )}
                                                 </div>
                                                 <div>
                                                     <p className="text-sm font-black text-slate-900 uppercase italic leading-none">{item.product?.name || 'Authorized Asset'}</p>
-                                                    <p className="text-[9px] font-bold text-slate-400 mt-2 uppercase tracking-widest">{item.quantity} Unit(s) Locked</p>
+                                                    <p className="text-[9px] font-bold text-slate-400 mt-2 uppercase tracking-widest">{item.quantity.toString().padStart(2, '0')} Unit(s) Locked</p>
                                                 </div>
                                             </div>
                                             <div className="text-right">
-                                                <p className="text-lg font-black text-slate-950 italic font-mono tracking-tighter">{settings.currencySymbol}{(item.price * item.quantity).toFixed(2)}</p>
-                                                <p className="text-[9px] font-bold text-emerald-600 uppercase tracking-widest mt-1 italic">Verified</p>
+                                                <p className="text-2xl font-black text-slate-950 italic font-mono tracking-tighter tabular-nums">{settings.currencySymbol}{(item.price * item.quantity).toFixed(2)}</p>
+                                                <p className="text-[9px] font-black text-blue-600 uppercase tracking-widest mt-1 italic">Authorized</p>
                                             </div>
                                         </div>
                                     ))}
@@ -372,38 +379,47 @@ export default function CheckoutClient() {
                             </div>
 
                             {/* Final Tally */}
-                            <div className="bg-slate-950 p-10 rounded-[3.5rem] text-white relative overflow-hidden">
-                                <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/20 blur-[60px] rounded-full" />
+                            <div className="bg-slate-950 p-12 rounded-[4rem] text-white relative overflow-hidden shadow-2xl shadow-blue-900/20">
+                                <div className="absolute top-0 right-0 w-64 h-64 bg-blue-600/10 blur-[100px] rounded-full" />
                                 
-                                <div className="space-y-4 mb-8">
-                                    <div className="flex justify-between items-center text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">
-                                        <span>Gross Asset Value</span>
-                                        <span className="text-white">{settings.currencySymbol}{(orderData.totalAmount + (orderData.discountAmount || 0)).toFixed(2)}</span>
+                                <div className="space-y-6 mb-10">
+                                    <div className="flex justify-between items-center text-[10px] font-black text-slate-500 uppercase tracking-[0.4em]">
+                                        <span>Gross Property Value</span>
+                                        <span className="text-white">{settings.currencySymbol}{mounted ? (orderData.totalAmount + (orderData.discountAmount || 0)).toFixed(2) : '--'}</span>
                                     </div>
                                     {orderData.discountAmount > 0 && (
-                                        <div className="flex justify-between items-center text-[10px] font-black text-emerald-500 uppercase tracking-[0.3em]">
-                                            <span>Tier Reward Applied</span>
-                                            <span>-{settings.currencySymbol}{orderData.discountAmount.toFixed(2)}</span>
+                                        <div className="flex justify-between items-center text-[10px] font-black text-blue-400 uppercase tracking-[0.4em]">
+                                            <span>Tier Privilege Applied</span>
+                                            <span>-{settings.currencySymbol}{mounted ? orderData.discountAmount.toFixed(2) : '--'}</span>
                                         </div>
                                     )}
+                                    <div className="flex justify-between items-center text-[10px] font-black text-slate-500 uppercase tracking-[0.4em]">
+                                        <span>Compliance Tax ({settings.taxRate}%)</span>
+                                        <span>{settings.currencySymbol}{mounted ? (orderData.taxAmount || 0).toFixed(2) : '--'}</span>
+                                    </div>
                                 </div>
 
-                                <div className="flex justify-between items-end border-t border-white/10 pt-8">
+                                <div className="flex justify-between items-end border-t border-white/10 pt-10">
                                     <div>
-                                        <p className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.4em] mb-2 italic">Total Payable</p>
-                                        <h2 className="text-5xl font-black italic tracking-tighter">{settings.currencySymbol}{orderData.totalAmount.toFixed(2)}</h2>
+                                        <p className="text-[10px] font-black text-blue-400 uppercase tracking-[0.5em] mb-3 italic">Total Authorized Settlement</p>
+                                        <h2 className="text-6xl font-black italic tracking-tighter tabular-nums leading-none">
+                                            {settings.currencySymbol}{mounted ? orderData.totalAmount.toFixed(2) : '--'}
+                                        </h2>
                                     </div>
                                     <div className="text-right hidden sm:block">
-                                        <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.3em]">Status</p>
-                                        <p className="text-xs font-black text-emerald-400 uppercase tracking-widest mt-1">Acquisition Finalized</p>
+                                        <div className="p-4 bg-white/5 rounded-2xl border border-white/10 mb-4 inline-block">
+                                            <Target className="w-6 h-6 text-blue-500" />
+                                        </div>
+                                        <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.4em]">Status</p>
+                                        <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest mt-1 italic">Acquisition Finalized</p>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
                         {/* Footer Notes */}
-                        <div className="bg-slate-50 px-10 md:px-16 py-8 text-center border-t border-slate-100">
-                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.5em]">This is a cryptographically verified digital proof of asset acquisition.</p>
+                        <div className="bg-slate-50 px-10 md:px-16 py-10 text-center border-t border-slate-100">
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.5em]">This is a cryptographically verified digital proof of asset acquisition.</p>
                         </div>
                     </div>
                 </div>
@@ -413,21 +429,34 @@ export default function CheckoutClient() {
 
     return (
         <div className="min-h-screen bg-transparent p-8 md:p-12 font-sans selection:bg-emerald-100">
-            <Toaster position="bottom-right" />
             {isScannerOpen && (
                 <BarcodeScanner 
                     onScan={handleScan} 
                     onClose={() => setIsScannerOpen(false)} 
                 />
             )}
-            <div className="max-w-6xl mx-auto">
-                <div className="flex items-center gap-6 mb-16">
-                    <Link href="/" className="p-4 hover:bg-white rounded-2xl transition-all text-slate-400 hover:text-emerald-600 shadow-sm border border-transparent hover:border-emerald-100">
-                        <ArrowLeft className="w-6 h-6" />
-                    </Link>
-                    <div>
-                        <h2 className="text-5xl font-black text-slate-950 tracking-tighter italic leading-none">Checkout <span className="text-emerald-600 NOT-italic">Protocol</span></h2>
-                        <p className="text-emerald-600/60 text-[10px] font-black uppercase tracking-[0.3em] mt-2 italic">Securing Marketplace Assets {user ? `| LOGGED AS ${user.email?.toUpperCase()}` : ''}</p>
+            <div className="w-full mx-auto px-6 lg:px-24">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 mb-16">
+                    <div className="flex items-center gap-6">
+                        <Link href="/" className="w-14 h-14 bg-white hover:bg-slate-950 rounded-2xl transition-all text-slate-400 hover:text-white shadow-xl flex items-center justify-center border border-white hover:border-slate-800">
+                            <ArrowLeft className="w-6 h-6" />
+                        </Link>
+                        <div>
+                            <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-500/10 rounded-full border border-blue-500/20 mb-2">
+                                <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse" />
+                                <span className="text-[8px] font-black text-blue-600 uppercase tracking-widest">Execution Hub v2.0</span>
+                            </div>
+                            <h2 className="text-7xl font-black text-slate-950 tracking-tighter italic leading-none">Checkout <span className="text-blue-600 NOT-italic">Protocol</span></h2>
+                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-4">
+                        <div className="text-right hidden md:block">
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.3em] mb-1 italic">Network Status</p>
+                            <p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest flex items-center justify-end gap-2">
+                                SYNC: ACTIVE <Activity className="w-3 h-3" />
+                            </p>
+                        </div>
                     </div>
                 </div>
 
@@ -437,15 +466,15 @@ export default function CheckoutClient() {
                         <div className="bg-white rounded-[3.5rem] p-10 border border-gray-100 shadow-xl shadow-gray-100/30">
                             <div className="flex items-center justify-between mb-8">
                                 <div>
-                                    <h3 className="text-2xl font-black text-slate-950 tracking-tighter italic uppercase">Order Registry</h3>
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1 italic">{cart.length} Unique Assets Secured</p>
+                                    <h3 className="text-3xl font-black text-slate-950 tracking-tighter italic uppercase">Registry</h3>
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1 italic">{cart.length} Secured Asset Signatures</p>
                                 </div>
                                 <button 
                                     onClick={() => setIsScannerOpen(true)}
-                                    className="flex items-center gap-3 px-6 py-4 bg-emerald-500/10 hover:bg-emerald-500 text-emerald-600 hover:text-white rounded-[2rem] border border-emerald-500/20 transition-all group font-black uppercase text-[10px] tracking-widest"
+                                    className="flex items-center gap-3 px-8 py-5 bg-blue-600 text-white rounded-[2rem] shadow-xl shadow-blue-200 transition-all group font-black uppercase text-[10px] tracking-[0.2em] active:scale-95"
                                 >
-                                    <Camera className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                                    <span>Scan Protocol</span>
+                                    <Camera className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                                    <span>Scan Asset</span>
                                 </button>
                             </div>
 
@@ -474,14 +503,14 @@ export default function CheckoutClient() {
                             </div>
                         </div>
 
-                        <div className="bg-emerald-500/5 rounded-[2.5rem] p-8 border border-emerald-500/10 flex items-center gap-6">
-                            <div className="p-4 bg-white rounded-2xl text-emerald-600 shadow-sm">
+                        <div className="bg-blue-600/5 rounded-[2.5rem] p-8 border border-blue-600/10 flex items-center gap-6">
+                            <div className="p-4 bg-white rounded-2xl text-blue-600 shadow-sm border border-blue-50">
                                 <ShieldCheck className="w-8 h-8" />
                             </div>
                             <div>
-                                <h4 className="text-sm font-black text-emerald-900 uppercase italic">Encrypted Authorization</h4>
-                                <p className="text-[10px] font-bold text-emerald-600/70 uppercase tracking-widest leading-relaxed">
-                                    All marketplace transactions are secured by 256-bit AES encryption and verified through our global pos-logic network.
+                                <h4 className="text-sm font-black text-slate-950 uppercase italic">Cryptographic Security</h4>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-relaxed">
+                                    All marketplace transactions are cryptographically verified and broadcast to the secure pos-ledger.
                                 </p>
                             </div>
                         </div>
@@ -499,9 +528,9 @@ export default function CheckoutClient() {
                                 <button
                                     key={method.id}
                                     onClick={() => setPaymentMethod(method.id as any)}
-                                    className={`flex-1 flex items-center justify-center gap-2 py-4 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${
+                                    className={`flex-1 flex items-center justify-center gap-2 py-5 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all ${
                                         paymentMethod === method.id
-                                            ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-900/40'
+                                            ? 'bg-blue-600 text-white shadow-xl shadow-blue-500/20'
                                             : 'text-slate-500 hover:text-white hover:bg-white/5'
                                     }`}
                                 >
@@ -558,23 +587,23 @@ export default function CheckoutClient() {
                             </div>
                         ) : paymentMethod === 'UPI' ? (
                             <div className="space-y-6 mb-10 animate-in fade-in slide-in-from-top-4 duration-500">
-                                <div className="p-8 bg-emerald-500/5 border-2 border-dashed border-emerald-500/20 rounded-[2.5rem] flex flex-col items-center text-center space-y-4">
-                                    <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-emerald-600 shadow-sm border border-emerald-100">
+                                <div className="p-8 bg-blue-600/5 border-2 border-dashed border-blue-600/20 rounded-[2.5rem] flex flex-col items-center text-center space-y-4">
+                                    <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-blue-600 shadow-xl border border-blue-50">
                                         <Landmark className="w-8 h-8" />
                                     </div>
                                     <div>
-                                        <h4 className="font-black text-sm uppercase italic text-emerald-900">Scan & Pay Protocol</h4>
-                                        <p className="text-[10px] text-emerald-600 uppercase tracking-widest mt-1">Instant Settlement Enabled</p>
+                                        <h4 className="font-black text-sm uppercase italic text-blue-900">Scan & Pay Interface</h4>
+                                        <p className="text-[10px] text-blue-600/60 uppercase tracking-widest mt-2 font-bold italic">Settlement Protocol Ready</p>
                                     </div>
                                 </div>
-                                <div className="space-y-3">
-                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Universal Payment Interface (UPI ID)</label>
+                                <div className="space-y-4">
+                                    <label className="text-[10px] font-black text-slate-600 uppercase tracking-widest ml-1">Asset Link (UPI ID)</label>
                                     <input
                                         type="text"
                                         placeholder="username@bank"
                                         value={upiId}
                                         onChange={(e) => setUpiId(e.target.value)}
-                                        className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 text-sm font-bold focus:ring-2 focus:ring-emerald-500/50 outline-none transition-all placeholder:text-slate-700"
+                                        className="w-full bg-white/5 border border-white/10 rounded-[1.5rem] p-6 text-sm font-black italic tracking-widest focus:ring-4 focus:ring-blue-500/20 outline-none transition-all placeholder:text-slate-700 shadow-inner"
                                     />
                                 </div>
                             </div>
@@ -643,7 +672,12 @@ export default function CheckoutClient() {
                                 </Link>
                             )}
 
-                            <div className="space-y-3">
+                             <div className="mb-4 flex items-center gap-3 pt-6 border-t border-white/10">
+                                 <Cpu className="w-4 h-4 text-blue-500" />
+                                 <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Commission Protocol</span>
+                             </div>
+
+                             <div className="space-y-3">
                                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Commission Agent (Optional)</label>
                                 <select
                                     value={selectedAgentId || ''}
@@ -674,13 +708,15 @@ export default function CheckoutClient() {
                                 <span className="text-emerald-400">FREE</span>
                             </div>
                             <div className="flex justify-between items-center text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
-                                <span>Compliance Tax</span>
-                                <span className="text-white">{settings.currencySymbol}0.00</span>
+                                <span>Compliance Tax ({settings.taxRate}%)</span>
+                                <span className="text-white">{settings.currencySymbol}{taxAmount.toFixed(2)}</span>
                             </div>
-                            <div className="pt-6 border-t border-white/10 flex justify-between items-end">
-                                <div>
-                                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-2">Authorized Total</span>
-                                    <span className="text-4xl font-black text-emerald-400 italic tracking-tighter font-mono">{settings.currencySymbol}{finalTotal.toFixed(2)}</span>
+                            <div className="pt-8 border-t border-white/10 flex justify-between items-end">
+                                <div className="space-y-2">
+                                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block italic mb-2">Total Payable Matrix</span>
+                                    <h2 className="text-5xl font-black text-blue-400 italic tracking-tighter truncate leading-none">
+                                        {settings.currencySymbol}{mounted ? finalTotal.toFixed(2) : '--'}
+                                    </h2>
                                 </div>
                             </div>
                         </div>
@@ -695,20 +731,21 @@ export default function CheckoutClient() {
                                 Save Draft
                             </button>
 
-                            <button 
-                                onClick={() => handleCheckout()}
-                                disabled={status !== 'idle' || cart.length === 0}
-                                className="bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-800 disabled:text-slate-500 text-white py-6 rounded-3xl font-black text-[10px] uppercase tracking-widest transition-all shadow-xl shadow-emerald-900/20 flex items-center justify-center gap-2 group italic overflow-hidden relative"
-                            >
-                                {status === 'processing' ? (
-                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                ) : (
-                                    <>
-                                        Authorize
-                                        <div className="absolute inset-0 bg-white/10 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
-                                    </>
-                                )}
-                            </button>
+                             <button 
+                                 onClick={() => handleCheckout()}
+                                 disabled={status !== 'idle' || cart.length === 0}
+                                 className="bg-blue-600 hover:bg-blue-500 disabled:bg-slate-800 disabled:text-slate-500 text-white py-6 rounded-[2.5rem] font-black text-[12px] uppercase tracking-[0.3em] transition-all shadow-2xl shadow-blue-900/40 flex items-center justify-center gap-3 group active:scale-95 overflow-hidden relative border border-blue-500/30"
+                             >
+                                 {status === 'processing' ? (
+                                     <Loader2 className="w-4 h-4 animate-spin text-white" />
+                                 ) : (
+                                     <>
+                                         <Zap className="w-5 h-5 fill-white" />
+                                         Authorize
+                                         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
+                                     </>
+                                 )}
+                             </button>
                         </div>
                         
                         <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mt-6 text-center italic">

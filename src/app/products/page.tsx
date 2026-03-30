@@ -56,7 +56,7 @@ export default function ProductsPage() {
             setProducts(Array.isArray(data) ? data : [])
         } catch (error) {
             console.error('Error fetching products:', error)
-            toast.error('Failed to synchronize with global registry')
+            toast.error('Failed to synchronize with global registry', { duration: 4000 })
         } finally {
             setIsLoading(false)
         }
@@ -79,7 +79,7 @@ export default function ProductsPage() {
         e.preventDefault()
         
         if (!formData.categoryId) {
-            toast.error('Identity protocol incomplete: Category required')
+            toast.error('Identity protocol incomplete: Category required', { duration: 4000 })
             return
         }
 
@@ -102,7 +102,7 @@ export default function ProductsPage() {
             })
 
             if (res.ok) {
-                toast.success('Asset Registry Updated')
+                toast.success('Asset Registry Updated', { duration: 4000 })
                 setFormData({
                     name: '',
                     price: '',
@@ -115,10 +115,10 @@ export default function ProductsPage() {
                 })
                 fetchProducts()
             } else {
-                toast.error('Registry Authorization Denied')
+                toast.error('Registry Authorization Denied', { duration: 4000 })
             }
         } catch (error) {
-            toast.error('Network Protocol Error')
+            toast.error('Network Protocol Error', { duration: 4000 })
         } finally {
             setIsAdding(true) // Should be false, fixed below
             setIsAdding(false)
@@ -129,6 +129,7 @@ export default function ProductsPage() {
         if (!isSignedIn) {
             toast.error('Authentication Required: Please login to sync assets', {
                 position: 'top-center',
+                duration: 4000,
                 style: { background: '#ef4444', color: '#fff', fontWeight: '900', fontSize: '12px' }
             })
             return
@@ -136,6 +137,7 @@ export default function ProductsPage() {
         addToCart(product)
         toast.success(`${product.name} synced to local cache`, {
             position: 'top-center',
+            duration: 3000,
             style: { background: '#10b981', color: '#fff', fontWeight: '900', fontSize: '12px' }
         })
     }
@@ -145,6 +147,7 @@ export default function ProductsPage() {
             window.open(brochureUrl, '_blank')
         } else {
             toast.error('Specification Document Missing', {
+                duration: 4000,
                 style: { background: '#0f172a', color: '#10b981', border: '1px solid #10b981' }
             })
         }
@@ -158,31 +161,30 @@ export default function ProductsPage() {
     if (authLoading) return null
 
     return (
-        <div className="min-h-screen bg-[#f8fafc] font-sans selection:bg-emerald-100 italic-text-fix">
-            <Toaster />
+        <div className="min-h-screen bg-[#f8fafc] font-sans selection:bg-blue-100 italic-text-fix">
             <StoreHeader />
             
-            <main className="max-w-7xl mx-auto px-6 py-12 space-y-16">
+            <main className="w-full mx-auto px-6 lg:px-24 py-12 space-y-16">
                 {/* Hero section */}
                 <div className="flex flex-col md:flex-row justify-between items-end gap-8 border-b border-slate-200 pb-12">
                     <div className="space-y-4">
-                        <div className="flex items-center gap-2 text-emerald-600 font-black uppercase tracking-[0.3em] text-[10px]">
+                        <div className="flex items-center gap-2 text-blue-600 font-black uppercase tracking-[0.4em] text-[10px]">
                             <Box className="w-4 h-4" />
                             Global Asset Repository
                         </div>
-                        <h1 className="text-7xl font-black text-slate-950 tracking-tighter italic leading-none">
-                            The <span className="text-emerald-600 NOT-italic">Collection.</span>
+                        <h1 className="text-8xl font-black text-slate-950 tracking-tighter italic leading-none uppercase">
+                            The <br /><span className="text-blue-600 NOT-italic">Collection.</span>
                         </h1>
                     </div>
                     
                     <div className="w-full md:w-96 relative group">
-                        <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-emerald-600 transition-colors" />
+                        <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-blue-600 transition-colors" />
                         <input 
                             type="text" 
                             placeholder="Search protocol (Name/SKU)..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full bg-white border-2 border-slate-100 rounded-3xl py-6 pl-16 pr-8 text-sm font-bold focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all shadow-sm"
+                            className="w-full bg-white border-2 border-slate-100 rounded-3xl py-6 pl-16 pr-8 text-sm font-bold focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all shadow-sm"
                         />
                     </div>
                 </div>
@@ -191,11 +193,11 @@ export default function ProductsPage() {
                     {/* Admin Registration Form */}
                     {isAdmin && (
                         <div className="lg:col-span-4 self-start sticky top-12">
-                            <div className="bg-slate-950 rounded-[3rem] p-10 text-white shadow-2xl shadow-emerald-950/20 border border-emerald-500/20 overflow-hidden relative">
-                                <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 blur-[60px] rounded-full" />
+                            <div className="bg-slate-950 rounded-[3rem] p-10 text-white shadow-2xl shadow-blue-950/20 border border-blue-500/20 overflow-hidden relative">
+                                <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 blur-[60px] rounded-full" />
                                 
                                 <h2 className="text-2xl font-black italic tracking-tight uppercase mb-8 flex items-center gap-3">
-                                    <Plus className="w-6 h-6 text-emerald-400" />
+                                    <Plus className="w-6 h-6 text-blue-400" />
                                     Register Asset
                                 </h2>
 
@@ -285,7 +287,7 @@ export default function ProductsPage() {
                                     <button 
                                         type="submit"
                                         disabled={isAdding}
-                                        className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-5 rounded-2xl transition-all active:scale-95 shadow-lg shadow-emerald-900/20 flex items-center justify-center gap-3 uppercase text-xs tracking-widest italic"
+                                        className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-5 rounded-2xl transition-all active:scale-95 shadow-lg shadow-blue-900/20 flex items-center justify-center gap-3 uppercase text-xs tracking-widest italic"
                                     >
                                         {isAdding ? 'Processing...' : 'Authorize Registration'}
                                     </button>
@@ -305,7 +307,7 @@ export default function ProductsPage() {
                         ) : (
                             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
                                 {filteredProducts.map((product) => (
-                                    <div key={product.id} className="group bg-white rounded-[3rem] p-8 border border-slate-100 hover:border-emerald-500/50 hover:shadow-2xl hover:shadow-emerald-900/5 transition-all duration-500 flex flex-col">
+                                    <div key={product.id} className="group bg-white rounded-[3rem] p-8 border border-slate-100 hover:border-blue-500/50 hover:shadow-2xl hover:shadow-blue-900/5 transition-all duration-500 flex flex-col">
                                         <div className="relative aspect-square rounded-[2rem] overflow-hidden bg-slate-50 mb-8 border border-slate-50">
                                             <img 
                                                 src={product.image || 'https://images.unsplash.com/photo-1542291026-7eec264c27ff'} 
@@ -326,14 +328,14 @@ export default function ProductsPage() {
                                                     <p className="text-[10px] font-bold text-slate-400 mt-2 uppercase tracking-widest">{product.sku}</p>
                                                 </div>
                                                 <div className="text-right">
-                                                    <p className="text-2xl font-black text-emerald-600 italic tracking-tighter font-mono">₹{product.price.toFixed(2)}</p>
+                                                    <p className="text-2xl font-black text-blue-600 italic tracking-tighter font-mono">₹{product.price.toFixed(2)}</p>
                                                 </div>
                                             </div>
 
                                             <div className="flex gap-4 pt-4">
                                                 <button 
                                                     onClick={() => handleAddToCart(product)}
-                                                    className="flex-1 bg-slate-950 hover:bg-emerald-600 text-white py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2 group-hover:shadow-emerald-900/10"
+                                                    className="flex-1 bg-slate-950 hover:bg-blue-600 text-white py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2 group-hover:shadow-blue-900/10"
                                                 >
                                                     <ShoppingBag className="w-4 h-4" />
                                                     Acquire
@@ -341,7 +343,7 @@ export default function ProductsPage() {
                                                 {product.brochureUrl && (
                                                     <button 
                                                         onClick={() => handleViewSpecs(product.brochureUrl)}
-                                                        className="p-4 bg-slate-50 hover:bg-white border border-transparent hover:border-slate-200 rounded-2xl text-slate-400 hover:text-emerald-600 transition-all"
+                                                        className="p-4 bg-slate-50 hover:bg-white border border-transparent hover:border-slate-200 rounded-2xl text-slate-400 hover:text-blue-600 transition-all"
                                                         title="View Specifications"
                                                     >
                                                         <ExternalLink className="w-5 h-5" />
@@ -366,17 +368,17 @@ export default function ProductsPage() {
                 </div>
 
                 {/* Info Footer */}
-                <div className="bg-emerald-50 rounded-[3.5rem] p-12 flex flex-col md:flex-row items-center justify-between gap-12 border border-emerald-100/50">
+                <div className="bg-blue-50 rounded-[3.5rem] p-12 flex flex-col md:flex-row items-center justify-between gap-12 border border-blue-100/50">
                     <div className="flex gap-8 items-center text-center md:text-left">
-                        <div className="w-20 h-20 bg-emerald-600 rounded-[1.5rem] flex items-center justify-center text-white shadow-xl shadow-emerald-200">
+                        <div className="w-20 h-20 bg-blue-600 rounded-[1.5rem] flex items-center justify-center text-white shadow-xl shadow-blue-200">
                             <ShieldCheck className="w-10 h-10" />
                         </div>
                         <div className="space-y-2">
-                            <h4 className="text-xl font-black text-emerald-900 uppercase italic leading-none">Global Asset Security</h4>
-                            <p className="text-sm font-bold text-emerald-600/70 max-w-md">Every transaction is cryptographically secured and logged in the marketplace mainframe.</p>
+                            <h4 className="text-xl font-black text-blue-900 uppercase italic leading-none">Global Asset Security</h4>
+                            <p className="text-sm font-bold text-blue-600/70 max-w-md">Every transaction is cryptographically secured and logged in the marketplace mainframe.</p>
                         </div>
                     </div>
-                    <Link href="/checkout" className="bg-slate-950 text-white px-10 py-6 rounded-3xl font-black uppercase text-xs tracking-widest transition-all hover:bg-emerald-600 shadow-xl shadow-slate-900/10 active:scale-95 flex items-center gap-3">
+                    <Link href="/checkout" className="bg-slate-950 text-white px-10 py-6 rounded-3xl font-black uppercase text-xs tracking-widest transition-all hover:bg-blue-600 shadow-xl shadow-slate-900/10 active:scale-95 flex items-center gap-3">
                         Enter Checkout Matrix
                         <ArrowRight className="w-5 h-5" />
                     </Link>

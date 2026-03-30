@@ -42,9 +42,11 @@ export default function ReportsClient() {
     const [salesData, setSalesData] = useState<any>([])
     const [loading, setLoading] = useState(true)
     const [dateRange, setDateRange] = useState('7d')
+    const [mounted, setMounted] = useState(false)
     const { settings } = useSettings()
 
     useEffect(() => {
+        setMounted(true)
         fetchData()
     }, [reportType])
 
@@ -69,8 +71,8 @@ export default function ReportsClient() {
             id: 'profit-loss', 
             name: 'Profit / Loss Report', 
             icon: TrendingUp, 
-            color: 'text-emerald-600', 
-            bg: 'bg-emerald-50',
+            color: 'text-blue-600', 
+            bg: 'bg-blue-50',
             description: 'Financial health audit and net performance tracking.' 
         },
         { 
@@ -136,8 +138,8 @@ export default function ReportsClient() {
                         <div className={`p-5 rounded-[1.5rem] bg-white border border-slate-100 shadow-xl shadow-slate-200/50 ${color}`}>
                             <Icon className="w-8 h-8" />
                         </div>
-                        <h1 className="text-6xl font-black text-slate-950 tracking-tighter italic leading-none">
-                            {title.split(' ')[0]} <span className={color + " NOT-italic"}>{title.split(' ').slice(1).join(' ')}</span>
+                        <h1 className="text-7xl font-black text-slate-950 tracking-tighter italic leading-none uppercase">
+                            {title.split(' ')[0]} <span className={color + " NOT-italic font-black text-6xl"}>{title.split(' ').slice(1).join(' ')}</span>
                         </h1>
                     </div>
                 </div>
@@ -145,7 +147,7 @@ export default function ReportsClient() {
                 {reportType !== 'hub' && (
                     <button 
                         onClick={() => router.push('/dashboard/reports')}
-                        className="px-8 py-5 rounded-2xl bg-slate-950 text-white font-black uppercase text-[10px] tracking-widest hover:bg-blue-600 transition-all flex items-center gap-3 italic mb-2"
+                        className="px-8 py-5 rounded-2xl bg-slate-950 text-white font-black uppercase text-[10px] tracking-[0.3em] hover:bg-blue-600 transition-all flex items-center gap-3 italic mb-2 border border-blue-500/10"
                     >
                         Return to Matrix Hub
                     </button>
@@ -162,7 +164,7 @@ export default function ReportsClient() {
                     onClick={() => handleNodeClick(node.id)}
                     className="group bg-white rounded-[3rem] p-10 border border-slate-100 hover:border-blue-500/50 hover:shadow-2xl hover:shadow-blue-900/5 transition-all duration-500 text-left relative overflow-hidden"
                 >
-                    <div className={`absolute top-0 right-0 w-32 h-32 ${node.bg.replace('bg-', 'bg-')}/5 blur-[50px] group-hover:${node.bg.replace('bg-', 'bg-')}/10 transition-all rounded-full`} />
+                    <div className={`absolute top-0 right-0 w-32 h-32 ${node.bg}/20 blur-[50px] group-hover:${node.bg}/40 transition-all rounded-full`} />
                     
                     <div className="flex justify-between items-start mb-8 relative">
                         <div className={`p-5 rounded-2xl ${node.bg} ${node.color} group-hover:bg-slate-950 group-hover:text-white transition-all duration-500`}>
@@ -200,17 +202,15 @@ export default function ReportsClient() {
         const isStock = reportType === 'stock'
         const isPurchaseSale = reportType === 'purchase-sale'
         
-        // Data processing for Stock
         let displayData = Array.isArray(salesData) ? salesData : []
         if (isStock && Array.isArray(salesData)) {
             displayData = salesData.map((p: any) => ({
-                label: p.name || 'Unknown Item',
+                name: p.name || 'Unknown Item',
                 value: Number(p.stock) || 0,
                 secondaryValue: (Number(p.stock) || 0) * (Number(p.price) || 0),
                 category: p.category?.name || 'Uncategorized'
             }))
         } else if (isPurchaseSale && salesData && salesData.sales && salesData.purchases) {
-            // Group sales and purchases by day (last 7 days)
             const daily: Record<string, { date: string, sales: number, purchases: number }> = {}
             for (let i = 0; i < 7; i++) {
                 const date = new Date()
@@ -235,7 +235,6 @@ export default function ReportsClient() {
 
         return (
             <div className="space-y-12 animate-in fade-in slide-in-from-bottom-6 duration-700">
-                {/* Filters */}
                 <div className="bg-white rounded-[2.5rem] p-8 border border-slate-100 shadow-xl shadow-slate-200/20 flex flex-wrap items-center gap-6">
                     <div className="flex items-center gap-3 bg-slate-50 px-6 py-4 rounded-xl border border-slate-100">
                         <Calendar className="w-4 h-4 text-blue-500" />
@@ -251,18 +250,17 @@ export default function ReportsClient() {
                         <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 group-focus-within:text-blue-500 transition-colors" />
                         <input 
                             placeholder="Explore Matrix Logs..."
-                            className="w-full bg-slate-50 border border-slate-100 rounded-xl px-14 py-4 text-[10px] font-black uppercase tracking-widest text-slate-900 outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                            className="w-full bg-slate-50 border border-slate-100 rounded-xl px-14 py-4 text-[10px] font-black uppercase tracking-widest text-slate-900 outline-none focus:ring-2 focus:ring-blue-500 transition-all font-bold"
                         />
                     </div>
 
                     <div className="flex items-center gap-3">
-                        <button className="px-8 py-4 bg-blue-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-500/20 italic">
+                        <button className="px-8 py-4 bg-blue-600 text-white rounded-xl text-[10px] font-black uppercase tracking-[0.2em] shadow-lg shadow-blue-500/20 italic hover:bg-blue-700 transition-all">
                             Refresh Data
                         </button>
                     </div>
                 </div>
 
-                {/* Main Content */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
                     <div className="lg:col-span-2 bg-white rounded-[3.5rem] p-12 border border-slate-100 shadow-2xl shadow-slate-200/30 overflow-hidden relative">
                         <div className="absolute top-0 right-0 p-12 opacity-[0.02]">
@@ -275,16 +273,15 @@ export default function ReportsClient() {
                                 {isStock ? 'Inventory Density Axis' : (reportType === 'expenses' ? 'Expense Classification Axis' : 'Operational Yield Axis')}
                             </h3>
                             
-                            {/* Legend */}
                             {!isStock && (
                                 <div className="flex items-center gap-6 bg-slate-50 px-6 py-3 rounded-2xl border border-slate-100">
                                     <div className="flex items-center gap-2">
-                                        <div className="w-3 h-3 rounded-sm bg-gradient-to-t from-blue-600 to-sky-400 shadow-[0_0_8px_rgba(37,99,235,0.4)]" />
+                                        <div className="w-3 h-3 rounded-sm bg-blue-600 shadow-[0_0_8px_rgba(37,99,235,0.4)]" />
                                         <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest italic">Revenue Protocol</span>
                                     </div>
                                     {isPurchaseSale && (
                                         <div className="flex items-center gap-2">
-                                            <div className="w-3 h-3 rounded-sm bg-gradient-to-t from-amber-500 to-orange-400 shadow-[0_0_8px_rgba(245,158,11,0.4)]" />
+                                            <div className="w-3 h-3 rounded-sm bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.4)]" />
                                             <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest italic">Procurement Outflow</span>
                                         </div>
                                     )}
@@ -304,7 +301,7 @@ export default function ReportsClient() {
                                         tickFormatter={(val) => 
                                             isStock || reportType === 'expenses' 
                                                 ? (val.length > 10 ? val.substring(0, 10) + '...' : val) 
-                                                : new Date(val).toLocaleDateString('en-US', { weekday: 'short' })
+                                                : (mounted ? new Date(val).toLocaleDateString('en-US', { weekday: 'short' }) : '...')
                                         }
                                     />
                                     <YAxis 
@@ -323,14 +320,14 @@ export default function ReportsClient() {
                                                 return (
                                                     <div className="bg-slate-900 text-white p-6 rounded-3xl shadow-2xl border border-white/10 text-[10px] font-black min-w-[200px]">
                                                         <p className="uppercase tracking-widest mb-4 opacity-50 border-b border-white/10 pb-2">
-                                                            {isStock || reportType === 'expenses' ? label : new Date(day.date).toLocaleDateString(undefined, { dateStyle: 'full' })}
+                                                            {isStock || reportType === 'expenses' ? label : (mounted ? new Date(day.date).toLocaleDateString(undefined, { dateStyle: 'full' }) : '...')}
                                                         </p>
                                                         
                                                         {isProfitLoss ? (
                                                             <div className="space-y-3">
                                                                 <div className="flex justify-between items-center gap-8">
                                                                     <span className="uppercase tracking-tighter italic text-slate-400">Revenue (Sales)</span>
-                                                                    <span className="text-emerald-400 font-mono">{settings.currencySymbol}{(day.sales || 0).toLocaleString()}</span>
+                                                                    <span className="text-blue-400 font-mono">{settings.currencySymbol}{(day.sales || 0).toLocaleString()}</span>
                                                                 </div>
                                                                 <div className="flex justify-between items-center gap-8">
                                                                     <span className="uppercase tracking-tighter italic text-slate-400">Operational Inflow</span>
@@ -338,7 +335,7 @@ export default function ReportsClient() {
                                                                 </div>
                                                                 <div className="pt-2 border-t border-white/10 flex justify-between items-center gap-8 mt-2">
                                                                     <span className="uppercase tracking-[0.2em] text-blue-400">Actual Net Yield</span>
-                                                                    <span className={`text-lg font-black italic tracking-tighter ${day.netProfit >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                                                                    <span className={`text-lg font-black italic tracking-tighter ${day.netProfit >= 0 ? 'text-blue-500' : 'text-rose-500'}`}>
                                                                         {settings.currencySymbol}{day.netProfit.toLocaleString()}
                                                                     </span>
                                                                 </div>
@@ -394,7 +391,7 @@ export default function ReportsClient() {
                             <div className="space-y-6">
                                 <div className="flex justify-between items-center bg-white/5 p-5 rounded-2xl border border-white/5">
                                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic">{isStock ? 'Total Assets' : 'System Yield'}</span>
-                                    <span className="text-2xl font-black italic tracking-tighter text-emerald-400">
+                                    <span className="text-2xl font-black italic tracking-tighter text-blue-400">
                                         {isStock 
                                             ? displayData.reduce((s: number, d: any) => s + d.value, 0)
                                             : `${settings.currencySymbol}${displayData.reduce((s: number, d: any) => s + (d.sales || 0), 0).toLocaleString()}`}
@@ -402,9 +399,9 @@ export default function ReportsClient() {
                                 </div>
                                 <div className="flex justify-between items-center bg-white/5 p-5 rounded-2xl border border-white/5">
                                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic">{isStock ? 'Inventory Value' : 'Expansion Rate'}</span>
-                                    <span className="text-2xl font-black italic tracking-tighter text-blue-400">
+                                    <span className="text-2xl font-black italic tracking-tighter text-blue-500">
                                         {isStock 
-                                            ? `${settings.currencySymbol}${displayData.reduce((s: number, d: any) => s + d.secondaryValue, 0).toLocaleString()}`
+                                            ? `${settings.currencySymbol}${displayData.reduce((s: number, d: any) => s + (d.secondaryValue || 0), 0).toLocaleString()}`
                                             : '+12.4%'}
                                     </span>
                                 </div>
@@ -413,7 +410,7 @@ export default function ReportsClient() {
 
                         <div className="bg-white rounded-[3rem] p-10 border border-slate-100 shadow-xl shadow-slate-200/20">
                             <h3 className="text-xl font-black text-slate-950 uppercase italic tracking-tighter mb-8 flex items-center gap-3">
-                                <ShieldCheck className="w-5 h-5 text-emerald-600" />
+                                <ShieldCheck className="w-5 h-5 text-blue-600" />
                                 Governance Note
                             </h3>
                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] leading-relaxed italic">
@@ -423,7 +420,6 @@ export default function ReportsClient() {
                     </div>
                 </div>
                 
-                {/* Table Detail */}
                 <div className="bg-white rounded-[3.5rem] border border-slate-100 shadow-2xl shadow-slate-200/30 overflow-hidden">
                     <table className="w-full text-left">
                         <thead>
@@ -437,10 +433,10 @@ export default function ReportsClient() {
                             {displayData.map((day: any, idx: number) => (
                                 <tr key={idx} className="group hover:bg-slate-50/50 transition-colors">
                                     <td className="px-10 py-8 text-sm font-black text-slate-950 italic tracking-tight uppercase">
-                                        {isStock || reportType === 'expenses' ? day.name : new Date(day.date).toLocaleDateString(undefined, { dateStyle: 'long' })}
+                                        {isStock || reportType === 'expenses' ? day.name : (mounted ? new Date(day.date).toLocaleDateString(undefined, { dateStyle: 'long' }) : '...')}
                                     </td>
                                     <td className="px-10 py-8 text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+                                        <div className="w-1.5 h-1.5 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(37,99,235,0.5)]" />
                                         {isStock ? day.category : 'Verified Intelligence'}
                                     </td>
                                     <td className="px-10 py-8 text-right">
@@ -465,18 +461,10 @@ export default function ReportsClient() {
             
             {reportType === 'hub' ? renderHub() : renderReportView()}
             
-            {/* Neural Background */}
             <div className="fixed inset-0 pointer-events-none opacity-[0.03] -z-10">
                 <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-blue-600 rounded-full blur-[150px]" />
-                <div className="absolute bottom-0 left-0 w-[800px] h-[800px] bg-emerald-600 rounded-full blur-[150px]" />
+                <div className="absolute bottom-0 left-0 w-[800px] h-[800px] bg-blue-500 rounded-full blur-[150px]" />
             </div>
-
-            <style jsx>{`
-                @keyframes growUp {
-                    from { transform: scaleY(0); opacity: 0; }
-                    to { transform: scaleY(1); opacity: 1; }
-                }
-            `}</style>
         </div>
     )
 }

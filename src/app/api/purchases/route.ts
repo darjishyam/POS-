@@ -101,6 +101,8 @@ export async function POST(request: Request) {
             }
 
             return purchase
+        }, {
+            timeout: 20000 // 20 seconds timeout for bulk procurement processing
         })
 
         return NextResponse.json(result)

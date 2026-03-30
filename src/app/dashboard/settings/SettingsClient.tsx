@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { 
-    Settings, 
+    Settings as SettingsIcon, 
     Save, 
     Store, 
     Globe, 
@@ -77,43 +77,42 @@ export default function SettingsClient() {
     if (loading) {
         return (
             <div className="flex items-center justify-center min-h-[60vh]">
-                <Loader2 className="w-12 h-12 text-emerald-500 animate-spin" />
+                <Loader2 className="w-12 h-12 text-blue-600 animate-spin" />
             </div>
         )
     }
 
     return (
-        <div className="p-8 md:p-12 font-sans selection:bg-emerald-100 min-h-screen bg-transparent">
-            <Toaster position="bottom-right" />
+        <div className="p-8 md:p-12 font-sans selection:bg-blue-100 min-h-screen bg-transparent">
             
             <div className="relative z-10 max-w-5xl mx-auto">
                 {/* Module Header */}
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12 border-b border-gray-200 pb-10">
                     <div className="space-y-4">
-                        <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500/10 rounded-full border border-emerald-500/20 shadow-[0_4px_12px_-4px_rgba(16,185,129,0.2)]">
-                            <ShieldCheck className="w-3 h-3 text-emerald-600" />
-                            <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Global Configuration Protocol</span>
+                        <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500/10 rounded-full border border-blue-500/20 shadow-sm">
+                            <ShieldCheck className="w-3 h-3 text-blue-600" />
+                            <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest leading-none">Global Configuration Protocol</span>
                         </div>
-                        <h2 className="text-6xl font-black text-gray-950 tracking-tighter leading-none italic">
-                            System <span className="text-emerald-600 NOT-italic font-black">Parameters</span>
+                        <h2 className="text-7xl font-black text-slate-950 tracking-tighter leading-none italic uppercase">
+                            System <span className="text-blue-600 NOT-italic font-black">Parameters</span>
                         </h2>
                     </div>
 
                     <button
                         onClick={handleSubmit}
                         disabled={submitting}
-                        className="bg-[#020617] hover:bg-black text-white px-10 py-5 rounded-3xl font-black text-xs uppercase tracking-widest shadow-xl shadow-emerald-500/10 transition-all active:scale-95 flex items-center gap-3 group border border-emerald-500/20"
+                        className="bg-slate-950 hover:bg-blue-600 text-white px-10 py-6 rounded-[2rem] font-black text-[11px] uppercase tracking-[0.3em] transition-all active:scale-95 flex items-center gap-3 group border border-blue-500/10 overflow-hidden relative"
                     >
-                        {submitting ? <Loader2 className="w-5 h-5 animate-spin text-emerald-400" /> : <Save className="w-5 h-5 group-hover:text-emerald-400 transition-all" />}
-                        Deploy Configuration
+                        {submitting ? <Loader2 className="w-5 h-5 animate-spin text-blue-400" /> : <Save className="w-5 h-5 group-hover:text-blue-400 group-hover:rotate-12 transition-all relative z-10" />}
+                        <span className="relative z-10">Deploy Configuration</span>
                     </button>
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-12">
                     {/* Brand & Identity */}
-                    <section className="bg-white rounded-[3.5rem] p-12 border border-gray-100 shadow-xl shadow-gray-100/30">
+                    <section className="bg-white rounded-[3.5rem] p-12 border border-blue-100/20 shadow-xl shadow-gray-100/30">
                         <div className="flex items-center gap-4 mb-10">
-                            <div className="p-4 bg-emerald-500 text-white rounded-[1.5rem] shadow-xl shadow-emerald-200">
+                            <div className="p-4 bg-blue-600 text-white rounded-[1.5rem] shadow-xl shadow-blue-200">
                                 <Store className="w-6 h-6" />
                             </div>
                             <div>
@@ -129,7 +128,7 @@ export default function SettingsClient() {
                                     type="text"
                                     value={settings.storeName}
                                     onChange={(e) => setSettings({ ...settings, storeName: e.target.value })}
-                                    className="w-full p-6 bg-slate-50 border-none rounded-2xl focus:bg-white focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all font-bold text-slate-800 text-lg tracking-tight"
+                                    className="w-full p-6 bg-slate-50 border-none rounded-2xl focus:bg-white focus:ring-4 focus:ring-blue-500/10 outline-none transition-all font-bold text-slate-800 text-lg tracking-tight"
                                 />
                             </div>
                             <div className="space-y-3">
@@ -138,7 +137,7 @@ export default function SettingsClient() {
                                     type="text"
                                     value={settings.logo}
                                     onChange={(e) => setSettings({ ...settings, logo: e.target.value })}
-                                    className="w-full p-6 bg-slate-50 border-none rounded-2xl focus:bg-white focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all font-bold text-slate-800"
+                                    className="w-full p-6 bg-slate-50 border-none rounded-2xl focus:bg-white focus:ring-4 focus:ring-blue-500/10 outline-none transition-all font-bold text-slate-800"
                                     placeholder="https://..."
                                 />
                             </div>
@@ -146,9 +145,9 @@ export default function SettingsClient() {
                     </section>
 
                     {/* Financial Matrix */}
-                    <section className="bg-white rounded-[3.5rem] p-12 border border-gray-100 shadow-xl shadow-gray-100/30">
+                    <section className="bg-white rounded-[3.5rem] p-12 border border-blue-100/20 shadow-xl shadow-gray-100/30">
                         <div className="flex items-center gap-4 mb-10">
-                            <div className="p-4 bg-emerald-500 text-white rounded-[1.5rem] shadow-xl shadow-emerald-200">
+                            <div className="p-4 bg-blue-600 text-white rounded-[1.5rem] shadow-xl shadow-blue-200">
                                 <IndianRupee className="w-6 h-6" />
                             </div>
                             <div>
@@ -164,7 +163,7 @@ export default function SettingsClient() {
                                     type="text"
                                     value={settings.currency}
                                     onChange={(e) => setSettings({ ...settings, currency: e.target.value })}
-                                    className="w-full p-6 bg-slate-50 border-none rounded-2xl focus:bg-white focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all font-bold text-slate-800"
+                                    className="w-full p-6 bg-slate-50 border-none rounded-2xl focus:bg-white focus:ring-4 focus:ring-blue-500/10 outline-none transition-all font-bold text-slate-800"
                                     placeholder="USD"
                                 />
                             </div>
@@ -174,7 +173,7 @@ export default function SettingsClient() {
                                     type="text"
                                     value={settings.currencySymbol}
                                     onChange={(e) => setSettings({ ...settings, currencySymbol: e.target.value })}
-                                    className="w-full p-6 bg-slate-50 border-none rounded-2xl focus:bg-white focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all font-bold text-slate-800"
+                                    className="w-full p-6 bg-slate-50 border-none rounded-2xl focus:bg-white focus:ring-4 focus:ring-blue-500/10 outline-none transition-all font-bold text-slate-800"
                                     placeholder="₹"
                                 />
                             </div>
@@ -184,7 +183,7 @@ export default function SettingsClient() {
                                     type="number"
                                     value={settings.taxRate}
                                     onChange={(e) => setSettings({ ...settings, taxRate: e.target.value })}
-                                    className="w-full p-6 bg-slate-50 border-none rounded-2xl focus:bg-white focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all font-bold text-slate-800"
+                                    className="w-full p-6 bg-slate-50 border-none rounded-2xl focus:bg-white focus:ring-4 focus:ring-blue-500/10 outline-none transition-all font-bold text-slate-800"
                                     placeholder="0"
                                 />
                             </div>
@@ -192,9 +191,9 @@ export default function SettingsClient() {
                     </section>
 
                     {/* Operational Coordinates */}
-                    <section className="bg-white rounded-[3.5rem] p-12 border border-gray-100 shadow-xl shadow-gray-100/30">
+                    <section className="bg-white rounded-[3.5rem] p-12 border border-blue-100/20 shadow-xl shadow-gray-100/30">
                         <div className="flex items-center gap-4 mb-10">
-                            <div className="p-4 bg-emerald-500 text-white rounded-[1.5rem] shadow-xl shadow-emerald-200">
+                            <div className="p-4 bg-blue-600 text-white rounded-[1.5rem] shadow-xl shadow-blue-200">
                                 <MapPin className="w-6 h-6" />
                             </div>
                             <div>
@@ -209,7 +208,7 @@ export default function SettingsClient() {
                                 <textarea
                                     value={settings.address}
                                     onChange={(e) => setSettings({ ...settings, address: e.target.value })}
-                                    className="w-full p-6 bg-slate-50 border-none rounded-2xl focus:bg-white focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all font-bold text-slate-800 h-32 resize-none"
+                                    className="w-full p-6 bg-slate-50 border-none rounded-2xl focus:bg-white focus:ring-4 focus:ring-blue-500/10 outline-none transition-all font-bold text-slate-800 h-32 resize-none"
                                     placeholder="Global HQ Address..."
                                 />
                             </div>
@@ -220,7 +219,7 @@ export default function SettingsClient() {
                                         type="text"
                                         value={settings.phone}
                                         onChange={(e) => setSettings({ ...settings, phone: e.target.value })}
-                                        className="w-full p-6 bg-slate-50 border-none rounded-2xl focus:bg-white focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all font-bold text-slate-800"
+                                        className="w-full p-6 bg-slate-50 border-none rounded-2xl focus:bg-white focus:ring-4 focus:ring-blue-500/10 outline-none transition-all font-bold text-slate-800"
                                         placeholder="+1..."
                                     />
                                 </div>
@@ -230,7 +229,7 @@ export default function SettingsClient() {
                                         type="email"
                                         value={settings.email}
                                         onChange={(e) => setSettings({ ...settings, email: e.target.value })}
-                                        className="w-full p-6 bg-slate-50 border-none rounded-2xl focus:bg-white focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all font-bold text-slate-800"
+                                        className="w-full p-6 bg-slate-50 border-none rounded-2xl focus:bg-white focus:ring-4 focus:ring-blue-500/10 outline-none transition-all font-bold text-slate-800"
                                         placeholder="admin@bardpos.hq"
                                     />
                                 </div>

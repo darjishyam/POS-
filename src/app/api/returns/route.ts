@@ -111,6 +111,8 @@ export async function POST(request: Request) {
             })
 
             return salesReturn
+        }, {
+            timeout: 20000 // 20 seconds timeout for reverse logistics processing
         })
 
         return NextResponse.json(result)

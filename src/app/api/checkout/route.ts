@@ -7,7 +7,7 @@ export async function POST(request: Request) {
     try {
         const body = await request.json();
         const cartItems = body.cartItems || body.items;
-        const { totalAmount, discountAmount, paymentMethod, customerInfo, upiId, agentId, customerId, status } = body;
+        const { totalAmount, taxAmount, discountAmount, paymentMethod, customerInfo, upiId, agentId, customerId, status } = body;
 
         if (!cartItems || !Array.isArray(cartItems)) {
             return NextResponse.json({ error: 'Cart items missing or invalid' }, { status: 400 });
@@ -40,8 +40,8 @@ export async function POST(request: Request) {
             if (customerInfo.phone) userPhone = customerInfo.phone;
         }
 
-        // Start a transaction to ensure atomicity
-        const order = await prisma.$transaction(async (tx: any) => {
+        // Start a transaction to ensure atomicity with a higher timeout
+        const result = await prisma.$transaction(async (tx: any) => {
             let finalCustomerId = customerId;
 
             if (!finalCustomerId) {
@@ -82,6 +82,7 @@ export async function POST(request: Request) {
             const newOrder = await tx.order.create({
                 data: {
                     totalAmount,
+                    taxAmount: taxAmount || 0,
                     discountAmount: discountAmount || 0,
                     paymentMethod: paymentMethod || 'CASH',
                     upiId: upiId || null,
@@ -127,18 +128,22 @@ export async function POST(request: Request) {
                 }
             }
 
-            // 3. Return the fully populated order
-            return await tx.order.findUnique({
-                where: { id: newOrder.id },
-                include: {
-                    items: {
-                        include: {
-                            product: true
-                        }
-                    },
-                    customer: true
-                }
-            })
+            return { orderId: newOrder.id };
+        }, {
+            timeout: 20000 // 20 seconds timeout for large checkouts
+        })
+
+        // 3. Post-Transaction: Fetch the fully populated order (outside the atomic block to prevent timeout)
+        const order = await prisma.order.findUnique({
+            where: { id: result.orderId },
+            include: {
+                items: {
+                    include: {
+                        product: true
+                    }
+                },
+                customer: true
+            }
         })
 
         return NextResponse.json(order)

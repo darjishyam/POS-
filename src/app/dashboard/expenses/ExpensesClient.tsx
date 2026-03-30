@@ -156,7 +156,7 @@ export default function ExpensesClient() {
             body: tableData,
             startY: 40,
             theme: 'grid',
-            headStyles: { fillColor: [16, 185, 129] }
+            headStyles: { fillColor: [37, 99, 235] }
         })
 
         doc.save(`BardPOS_Expenses_${new Date().toISOString().split('T')[0]}.pdf`)
@@ -164,19 +164,19 @@ export default function ExpensesClient() {
     }
 
     return (
-        <div className="p-8 md:p-12 font-sans selection:bg-emerald-100 min-h-screen bg-transparent">
+        <div className="p-8 md:p-12 font-sans selection:bg-blue-100 min-h-screen bg-transparent">
             <Toaster position="bottom-right" />
             
             <div className="relative z-10">
                 {/* Module Header */}
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12 border-b border-gray-200 pb-10">
                     <div className="space-y-4">
-                        <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500/10 rounded-full border border-emerald-500/20 shadow-[0_4px_12px_-4px_rgba(16,185,129,0.2)]">
-                            <TrendingDown className="w-3 h-3 text-emerald-600" />
-                            <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Financial Outflow Registry</span>
+                        <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500/10 rounded-full border border-blue-500/20 shadow-sm">
+                            <TrendingDown className="w-3 h-3 text-blue-600" />
+                            <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest leading-none">Financial Outflow Registry</span>
                         </div>
-                        <h2 className="text-6xl font-black text-gray-950 tracking-tighter leading-none italic">
-                            Operating <span className="text-emerald-600 NOT-italic font-black">Expenses</span>
+                        <h2 className="text-7xl font-black text-slate-950 tracking-tighter leading-none italic uppercase">
+                            Operating <span className="text-blue-600 NOT-italic font-black">Expenses</span>
                         </h2>
                     </div>
 
@@ -185,9 +185,9 @@ export default function ExpensesClient() {
                             <button 
                                 onClick={exportToCSV}
                                 title="Export CSV"
-                                className="p-5 bg-white hover:bg-emerald-50 text-slate-400 hover:text-emerald-600 rounded-2xl transition-all border border-slate-100 hover:border-emerald-200 shadow-sm group"
+                                className="p-5 bg-white hover:bg-blue-50 text-slate-400 hover:text-blue-600 rounded-2xl transition-all border border-slate-100 hover:border-blue-200 shadow-sm group"
                             >
-                                <span className="text-[10px] font-black uppercase tracking-widest mr-2 hidden md:inline">CSV</span>
+                                <span className="text-[10px] font-black uppercase tracking-widest mr-2 hidden md:inline">CSV Ledger</span>
                                 <Download className="w-4 h-4 group-hover:translate-y-1 transition-all inline" />
                             </button>
 
@@ -216,10 +216,11 @@ export default function ExpensesClient() {
                         </div>
                         <button
                             onClick={() => setIsModalOpen(true)}
-                            className="bg-slate-900 hover:bg-black text-white px-8 py-5 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-slate-200 transition-all active:scale-95 flex items-center gap-3 group border border-emerald-500/20"
+                            className="bg-slate-950 text-white px-10 py-6 rounded-[2rem] font-black text-[11px] uppercase tracking-[0.3em] hover:bg-blue-600 transition-all shadow-2xl shadow-blue-900/10 active:scale-95 flex items-center gap-4 group border border-blue-500/10 overflow-hidden relative"
                         >
-                            <Plus className="w-5 h-5 group-hover:rotate-90 group-hover:text-emerald-400 transition-all duration-500" />
-                            Record New Expense
+                            <div className="absolute inset-0 bg-gradient-to-r from-blue-600/0 via-white/5 to-blue-600/0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+                            <Plus className="w-5 h-5 group-hover:rotate-90 group-hover:text-sky-400 transition-all duration-500 relative z-10" />
+                            <span className="relative z-10">Record New Expense</span>
                         </button>
                     </div>
                 </div>
@@ -240,7 +241,7 @@ export default function ExpensesClient() {
                                 <tr>
                                     <td colSpan={4} className="p-24 text-center">
                                         <div className="flex flex-col items-center gap-4">
-                                            <div className="w-12 h-12 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+                                            <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
                                             <div className="text-[10px] font-black uppercase tracking-widest text-slate-300 italic">Accessing Financial Ledger...</div>
                                         </div>
                                     </td>
@@ -263,7 +264,7 @@ export default function ExpensesClient() {
                                     </td>
                                     <td className="px-8 py-6">
                                         <div className="flex items-center gap-2">
-                                            <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+                                            <div className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(37,99,235,0.5)]" />
                                             <span className="text-[10px] font-black text-gray-600 uppercase tracking-widest">
                                                 {expense.category?.name || 'Uncategorized'}
                                             </span>
@@ -273,9 +274,9 @@ export default function ExpensesClient() {
                                         <p className="text-sm font-bold text-gray-900 line-clamp-1 italic uppercase tracking-tight">{expense.description}</p>
                                     </td>
                                     <td className="px-8 py-6 text-right">
-                                        <div className="flex items-center justify-end gap-2 group-hover:text-emerald-600 transition-colors">
+                                        <div className="flex items-center justify-end gap-2 group-hover:text-blue-600 transition-colors">
                                             <ArrowDownRight className="w-4 h-4" />
-                                            <span className="text-xl font-black text-gray-950 tracking-tighter">₹{expense.amount.toFixed(2)}
+                                            <span className="text-xl font-black text-gray-950 tracking-tighter">₹{expense.amount.toFixed(0)}
                                             </span>
                                         </div>
                                     </td>

@@ -28,7 +28,7 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
         }
 
-        const transfer = await prisma.$transaction(async (tx) => {
+        const transfer = await prisma.$transaction(async (tx: any) => {
             // 1. Create the transfer record
             const newTransfer = await tx.stockTransfer.create({
                 data: {
@@ -84,6 +84,8 @@ export async function POST(req: Request) {
             }
 
             return newTransfer
+        }, {
+            timeout: 20000 // 20 seconds timeout for bulk stock transfer processing
         })
 
         return NextResponse.json(transfer)

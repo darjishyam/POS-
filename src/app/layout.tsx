@@ -35,7 +35,19 @@ export default function RootLayout({
             className={`${geistSans.variable} ${geistMono.variable} antialiased`}
           >
             <CartProvider>
-              <Toaster position="top-center" />
+              <Toaster 
+                position="top-center" 
+                toastOptions={{
+                  duration: 4000,
+                  style: {
+                    borderRadius: '1rem',
+                    background: '#0f172a',
+                    color: '#fff',
+                    fontSize: '12px',
+                    fontWeight: 'bold',
+                  },
+                }}
+              />
               <Cart />
               {children}
             </CartProvider>

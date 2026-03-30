@@ -32,7 +32,7 @@ export default async function LandingPage() {
         <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-purple-400/10 rounded-full blur-[120px] animate-pulse" style={{ animationDelay: '2s' }} />
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 md:px-12 relative z-10 pt-12">
+      <div className="max-w-[1920px] mx-auto px-6 md:px-12 lg:px-24 relative z-10 pt-12">
         <StoreHeader />
 
         {/* Dynamic Hero Section */}

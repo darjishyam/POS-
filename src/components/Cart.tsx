@@ -20,12 +20,12 @@ export default function Cart() {
                         {/* Header */}
                         <div className="p-8 border-b border-gray-50 flex items-center justify-between bg-slate-50/50">
                             <div className="flex items-center gap-4">
-                                <div className="p-3 bg-emerald-500 text-white rounded-2xl shadow-lg shadow-emerald-200">
+                                <div className="p-4 bg-blue-600 text-white rounded-[1.5rem] shadow-2xl shadow-blue-500/30 border border-blue-400/30">
                                     <ShoppingBag className="w-6 h-6" />
                                 </div>
                                 <div>
-                                    <h2 className="text-2xl font-black text-slate-950 tracking-tighter italic uppercase leading-none">Marketplace <span className="text-emerald-600 NOT-italic">Cart</span></h2>
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1 italic">{totalItems} System Assets Reserved</p>
+                                    <h2 className="text-2xl font-black text-slate-950 tracking-tighter italic uppercase leading-none">Marketplace <span className="text-blue-600 NOT-italic">Cart</span></h2>
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1.5 italic font-mono">{totalItems.toString().padStart(2, '0')} Assets Reserved</p>
                                 </div>
                             </div>
                             <button onClick={() => setIsCartOpen(false)} className="p-3 hover:bg-white rounded-2xl transition-all text-slate-300 hover:text-red-500 shadow-sm">
@@ -46,14 +46,14 @@ export default function Cart() {
                                     </div>
                                     <button 
                                         onClick={() => setIsCartOpen(false)}
-                                        className="bg-emerald-600 text-white px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-100 active:scale-90 italic"
+                                        className="bg-blue-600 text-white px-8 py-5 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-700 transition-all shadow-2xl shadow-blue-500/20 active:scale-[0.98] italic"
                                     >
                                         Return to Marketplace
                                     </button>
                                 </div>
                             ) : (
                                 cart.map((item) => (
-                                    <div key={item.id} className="group relative flex gap-6 p-6 bg-white rounded-[2rem] border border-gray-100 shadow-sm hover:border-emerald-200 transition-all">
+                                    <div key={item.id} className="group relative flex gap-6 p-6 bg-white rounded-[2rem] border border-gray-100 shadow-sm hover:border-blue-500/30 hover:shadow-xl hover:shadow-blue-500/5 transition-all duration-500">
                                         <div className="w-24 h-24 bg-slate-50 rounded-2xl overflow-hidden border border-gray-100 flex-shrink-0 group-hover:scale-105 transition-transform duration-500">
                                             {item.image ? (
                                                 <img src={item.image} className="w-full h-full object-cover opacity-90 group-hover:opacity-100" alt={item.name} />
@@ -74,11 +74,11 @@ export default function Cart() {
                                             
                                             <div className="flex items-center justify-between mt-auto">
                                                 <div className="flex items-center bg-slate-50 rounded-xl p-1 border border-slate-100">
-                                                    <button onClick={() => updateQuantity(item.id, item.quantity - 1)} className="p-2 hover:bg-white rounded-lg transition-all text-slate-400 hover:text-emerald-600 shadow-sm">
+                                                    <button onClick={() => updateQuantity(item.id, item.quantity - 1)} className="p-2 hover:bg-white rounded-lg transition-all text-slate-300 hover:text-blue-600 shadow-sm">
                                                         <Minus className="w-3 h-3" />
                                                     </button>
-                                                    <span className="w-8 text-center text-xs font-black text-slate-900">{item.quantity}</span>
-                                                    <button onClick={() => updateQuantity(item.id, item.quantity + 1)} className="p-2 hover:bg-white rounded-lg transition-all text-slate-400 hover:text-emerald-600 shadow-sm">
+                                                    <span className="w-8 text-center text-xs font-black text-slate-950 font-mono tracking-tighter">{item.quantity}</span>
+                                                    <button onClick={() => updateQuantity(item.id, item.quantity + 1)} className="p-2 hover:bg-white rounded-lg transition-all text-slate-300 hover:text-blue-600 shadow-sm">
                                                         <Plus className="w-3 h-3" />
                                                     </button>
                                                 </div>
@@ -104,17 +104,17 @@ export default function Cart() {
                                     </div>
                                     <div className="flex justify-between items-center pt-4 border-t border-gray-100">
                                         <span className="text-xs font-black text-slate-950 uppercase tracking-[0.2em] italic">Total Acquisition Cost</span>
-                                        <span className="text-3xl font-black text-emerald-600 italic tracking-tighter font-mono">₹{totalAmount.toFixed(2)}</span>
+                                        <span className="text-4xl font-black text-blue-600 italic tracking-tighter font-mono">₹{totalAmount.toFixed(2)}</span>
                                     </div>
                                 </div>
                                 
                                 <Link 
                                     href="/checkout"
                                     onClick={() => setIsCartOpen(false)}
-                                    className="w-full bg-gray-950 hover:bg-black text-white py-6 rounded-[2rem] font-black text-xs uppercase tracking-widest shadow-2xl shadow-emerald-500/10 transition-all active:scale-95 flex items-center justify-center gap-3 group italic border border-emerald-500/20"
+                                    className="w-full bg-slate-950 hover:bg-blue-600 text-white py-6 rounded-[2.5rem] font-black text-[10px] uppercase tracking-[0.4em] shadow-2xl shadow-blue-500/20 transition-all active:scale-[0.98] flex items-center justify-center gap-4 group italic border border-white/5"
                                 >
-                                    Proceed to Authorization
-                                    <ArrowRight className="w-5 h-5 group-hover:translate-x-2 transition-transform duration-500 text-emerald-400" />
+                                    Authorize Acquisition
+                                    <ArrowRight className="w-5 h-5 group-hover:translate-x-3 transition-transform duration-700 text-blue-400" />
                                 </Link>
                             </div>
                         )}

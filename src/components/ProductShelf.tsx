@@ -26,6 +26,7 @@ export default function ProductShelf({ products }: { products: Product[] }) {
         if (!isSignedIn) {
             toast.error('Authentication Required: Please login to synchronize assets', {
                 icon: '🔒',
+                duration: 4000,
                 style: {
                     borderRadius: '1.5rem',
                     background: '#be123c',
@@ -43,6 +44,7 @@ export default function ProductShelf({ products }: { products: Product[] }) {
         addToCart(product)
         toast.success(`${product.name} synchronized to your cart`, {
             icon: '🛍️',
+            duration: 3000,
             style: {
                 borderRadius: '1.5rem',
                 background: '#059669',
@@ -58,7 +60,6 @@ export default function ProductShelf({ products }: { products: Product[] }) {
 
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            <Toaster position="top-center" />
             {products.map((product) => (
                 <div key={product.id} className="group bg-white rounded-[2.5rem] border border-gray-100 shadow-xl shadow-gray-200/50 overflow-hidden hover:shadow-2xl hover:-translate-y-2 transition-all duration-500">
                     <div className="aspect-[4/3] overflow-hidden bg-gray-50 relative">

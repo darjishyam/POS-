@@ -12,7 +12,7 @@ model User {
   email     String   @unique
   name      String?
   password  String
-  role      String   @default("CASHIER")
+  role      String   @default("USER")
   isVerified Boolean  @default(false)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt

@@ -71,6 +71,7 @@ export default function PurchasesClient() {
     const [loading, setLoading] = useState(true)
     const [submitting, setSubmitting] = useState(false)
     const [search, setSearch] = useState('')
+    const [mounted, setMounted] = useState(false)
     const searchParams = useSearchParams()
     const productIdFromUrl = searchParams.get('productId')
 
@@ -83,6 +84,7 @@ export default function PurchasesClient() {
     const [items, setItems] = useState<any[]>([{ productId: '', quantity: 1, unitCost: 0, syncPrice: false, newPrice: 0 }])
 
     useEffect(() => {
+        setMounted(true)
         fetchData()
     }, [])
 
@@ -188,7 +190,7 @@ export default function PurchasesClient() {
             body: tableData,
             startY: 40,
             theme: 'grid',
-            headStyles: { fillColor: [16, 185, 129] }
+            headStyles: { fillColor: [37, 99, 235] }
         })
 
         doc.save(`BardPOS_Purchases_${new Date().toISOString().split('T')[0]}.pdf`)
@@ -340,82 +342,70 @@ export default function PurchasesClient() {
     }
 
     return (
-        <div className="p-8 md:p-12 font-sans selection:bg-emerald-100 min-h-screen bg-transparent">
-            <Toaster position="bottom-right" />
+        <div className="p-8 md:p-12 font-sans selection:bg-blue-100 min-h-screen bg-transparent">
             
             <div className="relative z-10">
                 {/* Module Header */}
-                <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12 border-b border-gray-200 pb-10">
-                    <div className="space-y-4">
-                        <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500/10 rounded-full border border-emerald-500/20">
-                            <Layers className="w-3 h-3 text-emerald-600" />
-                            <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Inventory Replenishment Ledger</span>
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8 mb-16 border-b border-gray-100 pb-12">
+                    <div className="space-y-6 text-center lg:text-left">
+                        <div className="inline-flex items-center gap-3 px-5 py-2 bg-blue-500/10 rounded-full border border-blue-500/20 shadow-[0_0_20px_rgba(37,99,235,0.1)]">
+                            <span className="w-2.5 h-2.5 bg-blue-600 rounded-full animate-pulse shadow-[0_0_10px_rgba(37,99,235,0.8)]" />
+                            <span className="text-[11px] font-black text-blue-600 uppercase tracking-widest leading-none">Procurement Protocol: Assets</span>
                         </div>
-                        <h2 className="text-6xl font-black text-gray-950 tracking-tighter leading-none italic">
-                            Stock <span className="text-emerald-600 NOT-italic font-black">Procurement</span>
+                        <h2 className="text-8xl font-black text-slate-950 tracking-tighter leading-[0.85] italic uppercase">
+                            Stock <br className="lg:hidden" /> <span className="text-blue-600 NOT-italic font-black">Procurement</span>
                         </h2>
                     </div>
 
-                    <div className="flex items-center gap-6">
-                        <div className="flex items-center gap-3">
-                            <button 
-                                onClick={exportToCSV}
-                                title="Export CSV"
-                                className="p-5 bg-white hover:bg-emerald-50 text-slate-400 hover:text-emerald-600 rounded-2xl transition-all border border-slate-100 hover:border-emerald-200 shadow-sm group"
-                            >
-                                <span className="text-[10px] font-black uppercase tracking-widest mr-2 hidden md:inline">CSV</span>
-                                <Download className="w-4 h-4 group-hover:translate-y-1 transition-all inline" />
-                            </button>
-
-                            <button 
-                                onClick={exportToExcel}
-                                title="Export Excel"
-                                className="p-5 bg-white hover:bg-blue-50 text-slate-400 hover:text-blue-600 rounded-2xl transition-all border border-slate-100 hover:border-blue-200 shadow-sm group"
-                            >
-                                <span className="text-[10px] font-black uppercase tracking-widest mr-2 hidden md:inline">Excel</span>
-                                <FileText className="w-4 h-4 group-hover:translate-y-1 transition-all inline" />
-                            </button>
-
-                            <button 
-                                onClick={exportToPDF}
-                                title="Export PDF"
-                                className="p-5 bg-white hover:bg-rose-50 text-slate-400 hover:text-rose-600 rounded-2xl transition-all border border-slate-100 hover:border-rose-200 shadow-sm group"
-                            >
-                                <span className="text-[10px] font-black uppercase tracking-widest mr-2 hidden md:inline">PDF</span>
-                                <FileText className="w-4 h-4 group-hover:translate-y-1 transition-all inline" />
-                            </button>
+                    <div className="flex flex-col sm:flex-row items-center gap-6">
+                        <div className="bg-white p-3 rounded-[2rem] border border-slate-100 shadow-xl shadow-gray-100/30 flex items-center gap-6">
+                            <div className="px-8 py-2 border-r border-slate-100 text-center">
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Volume Metric</p>
+                                <p className="text-3xl font-black text-slate-900 italic tracking-tighter">₹{(purchases || []).reduce((s, p) => s + (p?.totalAmount || 0), 0).toLocaleString(undefined, { minimumFractionDigits: 0 })}</p>
+                            </div>
+                            <div className="px-8 py-2 text-center">
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Active Batches</p>
+                                <p className="text-3xl font-black text-blue-600 italic tracking-tighter">{purchases.length.toString().padStart(2, '0')}</p>
+                            </div>
                         </div>
-                        <div className="text-right">
-                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Total Procurement Vol</p>
-                            <p className="text-3xl font-black text-gray-950 italic tracking-tighter">₹{(purchases || []).reduce((s, p) => s + (p?.totalAmount || 0), 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                            </p>
-                        </div>
+
                         <button
                             onClick={() => setIsModalOpen(true)}
-                            className="bg-slate-900 hover:bg-black text-white px-8 py-5 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-slate-200 transition-all active:scale-95 flex items-center gap-3 group border border-emerald-500/20"
+                            className="bg-slate-950 text-white px-10 py-7 rounded-[2.5rem] font-black text-xs uppercase tracking-[0.4em] hover:bg-blue-600 transition-all shadow-2xl shadow-blue-900/10 active:scale-95 flex items-center gap-4 group border border-blue-500/10 relative overflow-hidden"
                         >
-                            <ShoppingCart className="w-5 h-5 group-hover:scale-110 group-hover:text-emerald-400 transition-all duration-500" />
-                            Initialize Stock-In
+                            <div className="absolute inset-0 bg-gradient-to-r from-blue-600/0 via-white/5 to-blue-600/0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+                            <ShoppingCart className="w-6 h-6 group-hover:scale-125 group-hover:rotate-12 transition-all duration-500 relative z-10" />
+                            <span className="relative z-10">Initialize Stock-In</span>
                         </button>
                     </div>
                 </div>
 
                 {/* Filters */}
-                <div className="bg-white/70 backdrop-blur-xl p-4 rounded-3xl border border-white shadow-sm mb-8 flex flex-wrap gap-4 items-center">
-                    <div className="flex-1 min-w-[300px] relative">
+                <div className="bg-white p-5 rounded-[2.5rem] border border-gray-100 shadow-xl shadow-slate-200/40 mb-12 flex flex-col md:flex-row items-center gap-6">
+                    <div className="flex-1 relative group w-full">
+                        <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300 group-hover:text-blue-600 transition-colors" />
                         <input
                             type="text"
-                            placeholder="Search procurement history (Vendor, Ref)..."
-                            className="w-full bg-slate-100/50 border-none rounded-2xl py-4 pl-12 pr-6 font-bold text-slate-800 focus:ring-4 focus:ring-emerald-500/10 transition-all outline-none shadow-inner"
+                            placeholder="SEARCH PROCUREMENT HISTORY (VENDOR, REF-SIGNATURE)..."
+                            className="w-full bg-slate-50 border-none rounded-[1.5rem] py-5 pl-14 pr-6 text-[11px] font-black uppercase tracking-widest focus:ring-4 focus:ring-blue-100 outline-none transition-all shadow-inner"
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                         />
-                        <Search className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
                     </div>
 
-                    <div className="flex bg-slate-100/50 p-1.5 rounded-2xl border border-gray-100">
-                        <button className="px-6 py-2.5 rounded-xl bg-white shadow-sm text-[10px] font-black uppercase tracking-widest text-slate-900 border border-gray-100">All Batches</button>
-                        <button className="px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 transition-colors">Pending</button>
+                    <div className="flex items-center gap-4 border-l border-gray-100 pl-6 h-12">
+                        <button 
+                            onClick={exportToCSV}
+                            className="p-3 bg-slate-50 text-slate-400 hover:text-blue-600 rounded-xl transition-all border border-transparent hover:border-blue-100"
+                        >
+                            <Download className="w-5 h-5" />
+                        </button>
+                        <button 
+                            onClick={exportToPDF}
+                            className="p-3 bg-slate-50 text-slate-400 hover:text-rose-600 rounded-xl transition-all border border-transparent hover:border-rose-100"
+                        >
+                            <FileText className="w-5 h-5" />
+                        </button>
                     </div>
                 </div>
 
@@ -451,7 +441,7 @@ export default function PurchasesClient() {
                                             <div className="flex items-center gap-3">
                                                 <Calendar className="w-4 h-4 text-slate-300" />
                                                 <div>
-                                                    <p className="font-black text-slate-900 text-lg tracking-tight uppercase italic">{new Date(purchase.createdAt).toLocaleDateString()}</p>
+                                                    <p className="font-black text-slate-900 text-lg tracking-tight uppercase italic">{mounted ? new Date(purchase.createdAt).toLocaleDateString() : '...'}</p>
                                                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">ID: {purchase.id.slice(-8).toUpperCase()}</p>
                                                 </div>
                                             </div>
@@ -459,7 +449,7 @@ export default function PurchasesClient() {
                                         <td className="px-8 py-6">
                                             <div className="space-y-1">
                                                 <div className="flex items-center gap-2 text-sm font-black text-slate-900 italic uppercase">
-                                                    <Truck className="w-3 h-3 text-emerald-600" />
+                                                    <Truck className="w-3 h-3 text-blue-600" />
                                                     {purchase.supplier.name}
                                                 </div>
                                                 <div className="flex items-center gap-2 text-[10px] font-black text-blue-500 uppercase tracking-widest bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100 w-fit">
@@ -484,7 +474,7 @@ export default function PurchasesClient() {
                                                     const pStatus = due === 0 ? 'PAID' : (purchase.amountPaid > 0 ? 'PARTIAL' : 'DUE')
                                                     return (
                                                         <span className={`text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full border italic ${
-                                                            pStatus === 'PAID' ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' :
+                                                            pStatus === 'PAID' ? 'bg-blue-500/10 text-blue-600 border-blue-500/20' :
                                                             pStatus === 'PARTIAL' ? 'bg-amber-500/10 text-amber-600 border-amber-500/20' :
                                                             'bg-rose-500/10 text-rose-600 border-rose-500/20'
                                                         }`}>
@@ -501,25 +491,25 @@ export default function PurchasesClient() {
                                         </td>
                                         <td className="px-8 py-6 text-right">
                                             <div className="flex flex-col items-end gap-1">
-                                                <div className="flex items-center gap-2 font-black text-gray-950 tracking-tighter text-xl italic group-hover:text-emerald-600">
+                                                <div className="flex items-center gap-2 font-black text-gray-950 tracking-tighter text-xl italic group-hover:text-blue-600 transition-colors">
                                                     <ArrowUpRight className="w-4 h-4" />
-                                                    ₹{purchase.totalAmount.toFixed(2)}
+                                                    ₹{purchase.totalAmount.toFixed(0)}
                                                 </div>
                                                 <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                                                    <span>PAID: ₹{(purchase as any).amountPaid?.toFixed(2) || '0.00'}</span>
+                                                    <span>PAID: ₹{(purchase as any).amountPaid?.toFixed(0) || '0'}</span>
                                                     <span className="w-1 h-1 bg-slate-200 rounded-full" />
-                                                    <span className={((purchase as any).totalAmount - ((purchase as any).amountPaid || 0)) > 0 ? "text-rose-500" : "text-emerald-500"}>
-                                                        DUE: ₹{((purchase as any).totalAmount - ((purchase as any).amountPaid || 0)).toFixed(2)}
+                                                    <span className={((purchase as any).totalAmount - ((purchase as any).amountPaid || 0)) > 0 ? "text-rose-600" : "text-blue-600"}>
+                                                        DUE: ₹{((purchase as any).totalAmount - ((purchase as any).amountPaid || 0)).toFixed(0)}
                                                     </span>
                                                 </div>
                                             </div>
                                         </td>
                                         <td className="px-8 py-6 text-center">
-                                            <div className="flex items-center justify-center gap-2">
+                                            <div className="flex items-center justify-center gap-3">
                                                 {purchase.status === 'ORDERED' && (
                                                     <button 
                                                         onClick={() => handleReceive(purchase.id)}
-                                                        className="p-3 bg-emerald-600 text-white rounded-xl shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-all border border-emerald-500"
+                                                        className="p-4 bg-blue-600 text-white rounded-xl shadow-lg shadow-blue-200 hover:bg-slate-900 transition-all border border-blue-500"
                                                         title="Receive Stock"
                                                     >
                                                         <CheckCircle2 className="w-4 h-4" />
@@ -528,7 +518,7 @@ export default function PurchasesClient() {
                                                 {(purchase.totalAmount - (purchase.amountPaid || 0)) > 0 && (
                                                     <button 
                                                         onClick={() => openPaymentModal(purchase)}
-                                                        className="p-3 bg-white hover:bg-emerald-600 text-slate-400 hover:text-white rounded-xl border border-slate-100 hover:border-emerald-500 shadow-sm transition-all"
+                                                        className="p-4 bg-white hover:bg-blue-600 text-slate-400 hover:text-white rounded-xl border border-slate-100 hover:border-blue-500 shadow-sm transition-all"
                                                         title="Settle Liability"
                                                     >
                                                         <IndianRupee className="w-4 h-4" />
@@ -536,7 +526,7 @@ export default function PurchasesClient() {
                                                 )}
                                                 <button 
                                                     onClick={() => openReturnModal(purchase)}
-                                                    className="p-3 bg-white hover:bg-rose-600 text-slate-400 hover:text-white rounded-xl border border-slate-100 border-rose-100 shadow-sm transition-all"
+                                                    className="p-4 bg-white hover:bg-rose-600 text-slate-400 hover:text-white rounded-xl border border-slate-100 hover:border-rose-500 shadow-sm transition-all"
                                                     title="Initiate Return"
                                                 >
                                                     <ArrowUpRight className="w-4 h-4 rotate-180" />
@@ -558,11 +548,11 @@ export default function PurchasesClient() {
                     <div className="bg-white w-full max-w-5xl rounded-[3rem] shadow-2xl relative z-10 overflow-hidden animate-in zoom-in-95 duration-300 max-h-[90vh] flex flex-col font-sans">
                         <div className="p-12 border-b border-gray-100 flex justify-between items-center bg-slate-50/50">
                             <div className="flex items-center gap-4">
-                                <div className="p-3 bg-emerald-500/10 rounded-2xl border border-emerald-500/20">
-                                    <ShoppingCart className="w-6 h-6 text-emerald-600" />
+                                <div className="p-4 bg-blue-500/10 rounded-2xl border border-blue-500/20 shadow-xl shadow-blue-500/5">
+                                    <ShoppingCart className="w-8 h-8 text-blue-600" />
                                 </div>
-                                <h2 className="text-3xl font-black text-gray-950 tracking-tighter italic">
-                                    Initialize <span className="text-emerald-600 NOT-italic font-black">Batch Procurement</span>
+                                <h2 className="text-4xl font-black text-slate-950 tracking-tighter italic uppercase">
+                                    Initialize <br className="md:hidden" /> <span className="text-blue-600 NOT-italic font-black">Batch Procurement</span>
                                 </h2>
                             </div>
                             <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-white rounded-xl transition-all text-slate-400 hover:text-red-500">
@@ -648,7 +638,7 @@ export default function PurchasesClient() {
                                         <button 
                                             type="button"
                                             onClick={() => setPurchaseStatus('RECEIVED')}
-                                            className={`flex-1 py-5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all ${purchaseStatus === 'RECEIVED' ? 'bg-emerald-600 text-white shadow-xl shadow-emerald-200' : 'bg-white text-slate-400 hover:text-slate-600 border border-slate-100'}`}
+                                            className={`flex-1 py-7 rounded-[2rem] font-black text-xs uppercase tracking-widest transition-all ${purchaseStatus === 'RECEIVED' ? 'bg-blue-600 text-white shadow-2xl shadow-blue-500/30' : 'bg-white text-slate-400 hover:text-slate-600 border border-slate-100'}`}
                                         >
                                             🚀 Direct Stock-In
                                         </button>
@@ -782,12 +772,12 @@ export default function PurchasesClient() {
                                     <button
                                         type="button"
                                         onClick={addItem}
-                                        className="w-full border-2 border-dashed border-gray-100 hover:border-emerald-200 hover:bg-emerald-50/50 py-6 rounded-[2.5rem] flex items-center justify-center gap-3 text-gray-400 hover:text-emerald-600 transition-all group"
+                                        className="w-full border-2 border-dashed border-gray-100 hover:border-blue-200 hover:bg-blue-50/50 py-8 rounded-[2.5rem] flex items-center justify-center gap-4 text-slate-400 hover:text-blue-600 transition-all group shadow-sm hover:shadow-xl hover:shadow-blue-500/5"
                                     >
-                                        <div className="p-2 bg-white rounded-xl shadow-sm group-hover:bg-emerald-600 group-hover:text-white transition-all">
-                                            <Plus className="w-4 h-4" />
+                                        <div className="p-3 bg-white rounded-xl shadow-sm group-hover:bg-blue-600 group-hover:text-white transition-all transform group-hover:rotate-90">
+                                            <Plus className="w-5 h-5" />
                                         </div>
-                                        <span className="text-[10px] font-black uppercase tracking-[0.3em]">Append Entity to Batch</span>
+                                        <span className="text-[11px] font-black uppercase tracking-[0.4em]">Append Entity to Batch</span>
                                     </button>
                                 </div>
                             </div>
@@ -798,17 +788,17 @@ export default function PurchasesClient() {
                                     <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Calculated Disbursement Metrics</p>
                                     <div className="flex items-center gap-10">
                                         <div className="flex flex-col items-end">
-                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-1 italic">Cumulative Ledger Value</p>
-                                            <div className="text-6xl font-black text-slate-950 italic tracking-tighter flex items-center gap-4">
-                                                <span className="text-emerald-600 NOT-italic">₹</span>
-                                                {totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                            <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.3em] mb-1 italic">Cumulative Ledger Value</p>
+                                            <div className="text-7xl font-black text-slate-950 italic tracking-tighter flex items-center gap-6">
+                                                <span className="text-blue-600 NOT-italic font-black">₹</span>
+                                                {totalAmount.toLocaleString(undefined, { minimumFractionDigits: 0 })}
                                             </div>
                                         </div>
-                                        <div className="w-px h-10 bg-slate-200" />
+                                        <div className="w-px h-16 bg-slate-200" />
                                         <div className="flex flex-col">
-                                            <span className="text-[8px] font-black text-rose-500 uppercase tracking-widest">LIABILITY DUE</span>
-                                            <p className="text-4xl font-black text-rose-600 italic tracking-tighter">
-                                                ₹{(totalAmount - (amountPaid || 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                            <span className="text-[10px] font-black text-rose-500 uppercase tracking-widest mb-1">LIABILITY DUE</span>
+                                            <p className="text-5xl font-black text-rose-600 italic tracking-tighter">
+                                                ₹{(totalAmount - (amountPaid || 0)).toLocaleString(undefined, { minimumFractionDigits: 0 })}
                                             </p>
                                         </div>
                                     </div>
@@ -824,9 +814,11 @@ export default function PurchasesClient() {
                                     <button
                                         type="submit"
                                         disabled={submitting}
-                                        className="bg-emerald-600 hover:bg-emerald-700 text-white px-12 py-5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-xl shadow-emerald-200 active:scale-95 disabled:opacity-50"
+                                        className="bg-slate-950 text-white px-12 py-6 rounded-[2rem] font-black text-xs uppercase tracking-[0.3em] hover:bg-blue-600 transition-all shadow-2xl shadow-blue-900/10 active:scale-95 flex items-center gap-4 group border border-blue-500/10 relative overflow-hidden"
                                     >
-                                        {submitting ? 'Executing Batch...' : 'Finalize Stock-In'}
+                                        <div className="absolute inset-0 bg-gradient-to-r from-blue-600/0 via-white/5 to-blue-600/0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+                                        <CheckCircle2 className="w-5 h-5 group-hover:scale-125 transition-all relative z-10" />
+                                        <span className="relative z-10">{submitting ? 'Executing Batch...' : 'Finalize Stock-In'}</span>
                                     </button>
                                 </div>
                             </div>
@@ -840,13 +832,13 @@ export default function PurchasesClient() {
                     <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setIsPaymentModalOpen(false)} />
                     <div className="bg-white w-full max-w-xl rounded-[3rem] shadow-2xl relative z-10 overflow-hidden animate-in zoom-in-95 duration-300 font-sans">
                         <div className="p-12">
-                            <div className="flex items-center gap-4 mb-10">
-                                <div className="p-3 bg-emerald-500/10 rounded-2xl border border-emerald-500/20">
-                                    <IndianRupee className="w-6 h-6 text-emerald-600" />
+                            <div className="flex items-center gap-5 mb-10">
+                                <div className="p-4 bg-blue-500/10 rounded-2xl border border-blue-500/20 shadow-xl shadow-blue-500/5">
+                                    <IndianRupee className="w-7 h-7 text-blue-600" />
                                 </div>
-                                <div>
-                                    <h3 className="text-3xl font-black text-gray-950 tracking-tighter italic">Liability <span className="text-emerald-600 NOT-italic font-black">Settlement</span></h3>
-                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1 italic">Protocol: {selectedPurchase.referenceNumber || selectedPurchase.id.toUpperCase()}</p>
+                                <div className="space-y-1">
+                                    <h3 className="text-4xl font-black text-slate-950 tracking-tighter italic uppercase">Liability <span className="text-blue-600 NOT-italic font-black">Settlement</span></h3>
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1 italic leading-none">Authorization Code: {selectedPurchase.referenceNumber || selectedPurchase.id.slice(-8).toUpperCase()}</p>
                                 </div>
                             </div>
 
@@ -856,13 +848,13 @@ export default function PurchasesClient() {
                                     <div className="relative">
                                         <input
                                             required type="number" step="0.01" min="0.01" max={selectedPurchase.totalAmount - (selectedPurchase.amountPaid || 0)}
-                                            className="w-full p-8 bg-slate-50 border-none rounded-3xl focus:bg-white focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all font-black text-3xl text-slate-900 tracking-tighter italic"
+                                            className="w-full p-8 bg-slate-50 border-none rounded-[2rem] focus:bg-white focus:ring-4 focus:ring-blue-500/10 outline-none transition-all font-black text-4xl text-slate-950 tracking-tighter italic"
                                             value={amountPaid}
                                             onChange={(e) => setAmountPaid(parseFloat(e.target.value))}
                                         />
                                         <div className="absolute right-8 top-1/2 -translate-y-1/2 flex flex-col items-end">
-                                            <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest">OUTSTANDING</span>
-                                            <span className="text-xs font-black text-slate-400 italic">₹{(selectedPurchase.totalAmount - (selectedPurchase.amountPaid || 0)).toFixed(2)}</span>
+                                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Outstanding Balance</span>
+                                            <span className="text-sm font-black text-blue-600 italic">₹{(selectedPurchase.totalAmount - (selectedPurchase.amountPaid || 0)).toFixed(0)}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -880,9 +872,15 @@ export default function PurchasesClient() {
                                     </select>
                                 </div>
 
-                                <div className="pt-8 flex gap-4">
-                                    <button type="button" onClick={() => setIsPaymentModalOpen(false)} className="flex-1 py-6 rounded-2xl font-black text-xs uppercase tracking-widest text-gray-400 hover:bg-slate-50 transition-colors">Abort</button>
-                                    <button type="submit" disabled={submitting} className="flex-[2] py-6 bg-slate-950 hover:bg-black text-white rounded-3xl font-black text-xs uppercase tracking-widest shadow-xl transition-all active:scale-95 disabled:opacity-50">Settle Transaction</button>
+                                <div className="pt-10 flex gap-5">
+                                    <button type="button" onClick={() => setIsPaymentModalOpen(false)} className="flex-1 py-6 rounded-2xl font-black text-xs uppercase tracking-widest text-slate-400 hover:bg-slate-50 transition-colors">Abort</button>
+                                    <button 
+                                        type="submit" 
+                                        disabled={submitting} 
+                                        className="flex-[2] py-8 bg-slate-950 hover:bg-blue-600 text-white rounded-[2rem] font-black text-[11px] uppercase tracking-[0.3em] shadow-2xl shadow-blue-900/10 transition-all active:scale-95 disabled:opacity-50 border border-blue-500/20"
+                                    >
+                                        Execute Settlement
+                                    </button>
                                 </div>
                             </form>
                         </div>

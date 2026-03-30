@@ -89,7 +89,7 @@ export function OrdersClient() {
 
     if (loading) {
         return (
-            <div className="max-w-6xl mx-auto py-12 px-6">
+            <div className="w-full mx-auto py-12">
                 <div className="h-12 w-64 bg-slate-100 animate-pulse rounded-2xl mb-8" />
                 <div className="space-y-6">
                     {[1, 2, 3].map(i => (
@@ -101,8 +101,7 @@ export function OrdersClient() {
     }
 
     return (
-        <div className="max-w-6xl mx-auto py-12 px-6">
-            <Toaster position="top-center" />
+        <div className="w-full mx-auto py-12">
             
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-12">
                 <div>
