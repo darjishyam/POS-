@@ -11,17 +11,25 @@ export async function PATCH(
         const body = await request.json()
         
         // Dynamic Validation Protocol
-        const validation = productSchema.safeParse(body)
+        const validation = productSchema.partial().safeParse(body)
         if (!validation.success) {
+            console.error('PATCH Validation Error:', validation.error.format())
             return NextResponse.json({ 
                 error: 'Schema Validation Failure', 
                 details: validation.error.format() 
             }, { status: 400 })
         }
 
+        const { supplierId, purchaseCost, ...productInfo } = validation.data
+        
+        // Nullify empty ID strings to prevent Prisma foreign key constraint errors
+        const updateData: any = { ...productInfo };
+        if (updateData.brandId === "") updateData.brandId = null;
+        if (updateData.unitId === "") updateData.unitId = null;
+
         const product = await prisma.product.update({
             where: { id },
-            data: validation.data,
+            data: updateData,
             include: { category: true }
         })
         return NextResponse.json(product)

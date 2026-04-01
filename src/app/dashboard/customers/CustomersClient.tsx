@@ -19,8 +19,10 @@ import {
     Star,
     Download,
     FileText,
-    Smartphone
+    Smartphone,
+    Eye
 } from 'lucide-react'
+import Link from 'next/link'
 import { toast, Toaster } from 'react-hot-toast'
 import * as XLSX from 'xlsx'
 import { jsPDF } from 'jspdf'
@@ -189,13 +191,13 @@ export default function CustomersClient() {
         })
 
         doc.save(`BardPOS_Customers_${new Date().toISOString().split('T')[0]}.pdf`)
-        toast.success('High-Fidelity PDF Dossier Exported')
+        toast.success('High-Fidelity PDF Details Exported')
     }
 
     return (
         <div className="p-8 md:p-12 font-sans selection:bg-blue-100 min-h-screen bg-transparent border-none">
             
-            <div className="relative z-10 max-w-7xl mx-auto space-y-12">
+            <div className="relative z-10 w-full space-y-12">
                 {/* Module Header */}
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-10">
                     <div className="space-y-4">
@@ -220,7 +222,7 @@ export default function CustomersClient() {
                     </div>
                 </div>
 
-                {/* Strategic Dossier Metrics */}
+                {/* Strategic Detail Metrics */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div className="bg-white/80 backdrop-blur-xl p-8 rounded-[2.5rem] border border-white shadow-xl flex items-center justify-between group">
                         <div>

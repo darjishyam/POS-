@@ -517,7 +517,12 @@ export default function CheckoutClient() {
                     </div>
 
                     {/* Summary & Action */}
-                    <div className="lg:col-span-5 bg-gray-950 rounded-[3.5rem] p-12 text-white shadow-2xl shadow-emerald-900/10 border border-emerald-500/20">
+                    <div className="lg:col-span-5 bg-slate-950/80 backdrop-blur-3xl rounded-[3.5rem] p-12 text-white shadow-2xl shadow-blue-900/30 border border-white/10 relative overflow-hidden group/panel transition-all duration-700 hover:shadow-blue-900/40 hover:bg-slate-950/90">
+                        {/* Ambient Glows */}
+                        <div className="absolute -bottom-40 -right-40 w-[30rem] h-[30rem] bg-blue-600/20 blur-[128px] rounded-full pointer-events-none transition-opacity duration-1000 group-hover/panel:opacity-100 opacity-60" />
+                        <div className="absolute -top-40 -left-40 w-[20rem] h-[20rem] bg-emerald-500/10 blur-[100px] rounded-full pointer-events-none" />
+                        
+                        <div className="relative z-10">
                         {/* Payment Method Selection */}
                         <div className="flex gap-2 mb-8 p-1 bg-white/5 rounded-2xl border border-white/10">
                             {[
@@ -751,6 +756,7 @@ export default function CheckoutClient() {
                         <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mt-6 text-center italic">
                             By authorizing, you agree to our marketplace protocols and asset licensing terms.
                         </p>
+                        </div>
                     </div>
                 </div>
             </div>

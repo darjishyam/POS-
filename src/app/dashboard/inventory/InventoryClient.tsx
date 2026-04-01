@@ -23,6 +23,7 @@ import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { useRouter } from 'next/navigation'
 import { useSettings } from '@/context/SettingsContext'
+import * as htmlToImage from 'html-to-image'
 
 export default function InventoryClient() {
     const router = useRouter()
@@ -34,20 +35,35 @@ export default function InventoryClient() {
     const [selectedCategory, setSelectedCategory] = useState('All')
     const [barcodeProduct, setBarcodeProduct] = useState<any | null>(null)
     const [mounted, setMounted] = useState(false)
+    const [editingCell, setEditingCell] = useState<{ id: string, field: 'price' | 'stock' } | null>(null)
+    const [editValue, setEditValue] = useState('')
 
     useEffect(() => {
         setMounted(true)
         const fetchData = async () => {
-            const [prodRes, catRes] = await Promise.all([
-                fetch('/api/products'),
-                fetch('/api/categories')
-            ])
-            const [prods, cats] = await Promise.all([prodRes.json(), catRes.json()])
-            setProducts(Array.isArray(prods) ? prods : [])
-            setCategories(Array.isArray(cats) ? cats : [])
-            setLoading(false)
+            try {
+                const [prodRes, catRes] = await Promise.all([
+                    fetch('/api/products', { cache: 'no-store' }),
+                    fetch('/api/categories', { cache: 'no-store' })
+                ])
+                const [prods, cats] = await Promise.all([prodRes.json(), catRes.json()])
+                setProducts(Array.isArray(prods) ? prods : [])
+                setCategories(Array.isArray(cats) ? cats : [])
+            } catch (err) {
+                // silently fail polling if network drops
+            } finally {
+                setLoading(false)
+            }
         }
+        
+        // Initial Fetch
         fetchData()
+
+        // Real-Time Web Polling (Magic Sync every 3 seconds)
+        const intervalId = setInterval(fetchData, 3000)
+
+        // Cleanup on unmount
+        return () => clearInterval(intervalId)
     }, [])
 
     const filteredProducts = (products || []).filter(p => {
@@ -55,6 +71,48 @@ export default function InventoryClient() {
         const matchesCat = selectedCategory === 'All' || p.category?.name === selectedCategory
         return matchesSearch && matchesCat
     })
+
+    const handleDoubleClick = (id: string, field: 'price' | 'stock', value: number) => {
+        setEditingCell({ id, field })
+        setEditValue(value.toString())
+    }
+
+    const handleCellSave = async (id: string, field: 'price' | 'stock') => {
+        if (!editingCell || editingCell.id !== id || editingCell.field !== field) return;
+        
+        const val = parseFloat(editValue);
+        if (isNaN(val) || val < 0) {
+            toast.error(`Invalid ${field}`);
+            setEditingCell(null);
+            return;
+        }
+
+        // Optimistic update
+        setProducts(prev => prev.map(p => p.id === id ? { ...p, [field]: val } : p));
+        setEditingCell(null);
+
+        // API Call
+        try {
+            const res = await fetch(`/api/products/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ [field]: val })
+            });
+            if (!res.ok) throw new Error();
+            toast.success(`${field === 'price' ? 'Valuation' : 'Volume'} Matrix Calibrated`);
+        } catch (error) {
+            toast.error('Sync failed');
+            // Data will self-correct on next magic sync poll
+        }
+    }
+
+    const handleKeyDown = (e: React.KeyboardEvent, id: string, field: 'price' | 'stock') => {
+        if (e.key === 'Enter') {
+            handleCellSave(id, field);
+        } else if (e.key === 'Escape') {
+            setEditingCell(null);
+        }
+    }
 
 
     const exportToCSV = () => {
@@ -88,6 +146,23 @@ export default function InventoryClient() {
         XLSX.utils.book_append_sheet(workbook, worksheet, "Inventory")
         XLSX.writeFile(workbook, `BardPOS_Inventory_${new Date().toISOString().split('T')[0]}.xlsx`)
         toast.success('Excel Ledger Exported')
+    }
+
+    const exportToJPG = async () => {
+        const element = document.getElementById('inventory-table-container')
+        if (!element) return
+
+        try {
+            toast.loading('Capturing Asset Matrix...', { id: 'jpgCapture' })
+            const imageStr = await htmlToImage.toJpeg(element, { quality: 0.9, backgroundColor: '#ffffff', pixelRatio: 2 })
+            const link = document.createElement('a')
+            link.href = imageStr
+            link.download = `BardPOS_Inventory_Matrix_${new Date().toISOString().split('T')[0]}.jpg`
+            link.click()
+            toast.success('Visual Ledger Exported', { id: 'jpgCapture' })
+        } catch (error) {
+            toast.error('Capture Failed', { id: 'jpgCapture' })
+        }
     }
 
     const exportToPDF = () => {
@@ -144,6 +219,24 @@ export default function InventoryClient() {
         window.print();
         document.body.innerHTML = originalContents;
         window.location.reload(); // Refresh to restore React state
+    }
+
+    const downloadBarcodeJPG = async () => {
+        const element = document.getElementById('printable-barcode')
+        if (!element || !barcodeProduct) return
+
+        try {
+            toast.loading('Capturing Barcode Signature...', { id: 'barcodeJpg' })
+            const imageStr = await htmlToImage.toJpeg(element, { quality: 1.0, backgroundColor: '#ffffff', pixelRatio: 4 })
+            const link = document.createElement('a')
+            link.href = imageStr
+            link.download = `BardPOS_Barcode_${barcodeProduct.sku || barcodeProduct.id}.jpg`
+            link.click()
+            toast.success('Barcode Core Extracted', { id: 'barcodeJpg' })
+        } catch (error) {
+            console.error("Barcode capture failed:", error)
+            toast.error('Capture Failed', { id: 'barcodeJpg' })
+        }
     }
 
     return (
@@ -229,6 +322,7 @@ export default function InventoryClient() {
                             <button onClick={exportToCSV} className="p-4 hover:bg-blue-600 hover:text-white text-slate-400 rounded-xl transition-all"><Download className="w-4 h-4" /></button>
                             <button onClick={exportToExcel} className="p-4 hover:bg-sky-600 hover:text-white text-slate-400 rounded-xl transition-all"><FileText className="w-4 h-4" /></button>
                             <button onClick={exportToPDF} className="p-4 hover:bg-rose-600 hover:text-white text-slate-400 rounded-xl transition-all"><Printer className="w-4 h-4" /></button>
+                            <button onClick={exportToJPG} className="p-4 hover:bg-emerald-600 hover:text-white text-slate-400 rounded-xl transition-all"><ImageIcon className="w-4 h-4" /></button>
                         </div>
                     </div>
                 </div>
@@ -251,7 +345,7 @@ export default function InventoryClient() {
                         ))}
                     </div>
                 ) : (
-                    <div className="bg-white/80 backdrop-blur-xl rounded-[3rem] border border-white shadow-2xl shadow-slate-200/50 overflow-hidden">
+                    <div id="inventory-table-container" className="bg-white/80 backdrop-blur-xl rounded-[3rem] border border-white shadow-2xl shadow-slate-200/50 overflow-hidden">
                         <table className="w-full text-left border-collapse">
                             <thead>
                                 <tr className="bg-slate-50/50 border-b border-slate-100 uppercase tracking-widest text-[10px] font-black text-slate-400 italic">
@@ -300,13 +394,56 @@ export default function InventoryClient() {
                                             </span>
                                         </td>
                                         <td className="px-8 py-6">
-                                            <span className="text-2xl font-black text-slate-950 italic tracking-tighter">{settings.currencySymbol}{prod.price.toFixed(2)}</span>
+                                            {editingCell?.id === prod.id && editingCell?.field === 'price' ? (
+                                                <div className="relative w-32">
+                                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">{settings.currencySymbol}</span>
+                                                    <input
+                                                        autoFocus
+                                                        type="number"
+                                                        step="0.01"
+                                                        min="0"
+                                                        value={editValue}
+                                                        onChange={(e) => setEditValue(e.target.value)}
+                                                        onBlur={() => handleCellSave(prod.id, 'price')}
+                                                        onKeyDown={(e) => handleKeyDown(e, prod.id, 'price')}
+                                                        className="w-full pl-8 pr-4 py-2 bg-white border-2 border-blue-500 rounded-xl focus:outline-none font-black text-slate-900 italic tracking-tighter shadow-lg shadow-blue-500/20"
+                                                    />
+                                                </div>
+                                            ) : (
+                                                <span 
+                                                    onDoubleClick={() => handleDoubleClick(prod.id, 'price', prod.price)}
+                                                    className="text-2xl font-black text-slate-950 italic tracking-tighter cursor-pointer hover:text-blue-600 transition-colors border-b-2 border-transparent hover:border-blue-200"
+                                                    title="Double-click to edit price"
+                                                >
+                                                    {settings.currencySymbol}{prod.price.toFixed(2)}
+                                                </span>
+                                            )}
                                         </td>
                                         <td className="px-8 py-6">
-                                            <div className="flex items-center gap-3">
-                                                <div className={`w-2 h-2 rounded-full ${prod.stock < 10 ? 'bg-rose-500 animate-pulse shadow-[0_0_8px_rgba(225,29,72,1)]' : 'bg-blue-500 shadow-[0_0_8px_rgba(37,99,235,1)]'}`} />
-                                                <span className="text-xl font-black text-slate-900 italic tracking-tighter">{prod.stock.toString().padStart(2, '0')} <span className="text-[10px] text-slate-400 NOT-italic uppercase tracking-widest ml-1">Units</span></span>
-                                            </div>
+                                            {editingCell?.id === prod.id && editingCell?.field === 'stock' ? (
+                                                <div className="w-24">
+                                                    <input
+                                                        autoFocus
+                                                        type="number"
+                                                        step="1"
+                                                        min="0"
+                                                        value={editValue}
+                                                        onChange={(e) => setEditValue(e.target.value)}
+                                                        onBlur={() => handleCellSave(prod.id, 'stock')}
+                                                        onKeyDown={(e) => handleKeyDown(e, prod.id, 'stock')}
+                                                        className="w-full px-4 py-2 bg-white border-2 border-blue-500 rounded-xl focus:outline-none font-black text-slate-900 italic tracking-tighter shadow-lg shadow-blue-500/20"
+                                                    />
+                                                </div>
+                                            ) : (
+                                                <div 
+                                                    onDoubleClick={() => handleDoubleClick(prod.id, 'stock', prod.stock)}
+                                                    className="flex items-center gap-3 cursor-pointer group hover:bg-slate-50 p-2 -ml-2 rounded-xl transition-all w-fit"
+                                                    title="Double-click to edit stock"
+                                                >
+                                                    <div className={`w-2 h-2 rounded-full ${prod.stock < 10 ? 'bg-rose-500 animate-pulse shadow-[0_0_8px_rgba(225,29,72,1)]' : 'bg-blue-500 shadow-[0_0_8px_rgba(37,99,235,1)]'}`} />
+                                                    <span className="text-xl font-black text-slate-900 italic tracking-tighter group-hover:text-blue-600 transition-colors">{prod.stock.toString().padStart(2, '0')} <span className="text-[10px] text-slate-400 NOT-italic uppercase tracking-widest ml-1">Units</span></span>
+                                                </div>
+                                            )}
                                         </td>
                                         <td className="px-8 py-6 text-right">
                                             <div className="flex items-center justify-end gap-2">
@@ -364,13 +501,22 @@ export default function InventoryClient() {
                             </div>
                             
                             <div className="w-full space-y-6">
-                                <button 
-                                    onClick={printBarcode}
-                                    className="w-full bg-slate-950 text-white py-7 rounded-[2rem] font-black text-xs uppercase tracking-[0.4em] hover:bg-blue-600 transition-all shadow-2xl shadow-blue-200 flex items-center justify-center gap-4 group active:scale-95 border border-blue-500/20"
-                                >
-                                    <Printer className="w-6 h-6 group-hover:animate-bounce" />
-                                    Execute Print Protocol
-                                </button>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <button 
+                                        onClick={printBarcode}
+                                        className="w-full bg-slate-950 text-white py-6 rounded-[2rem] font-black text-[10px] uppercase tracking-[0.3em] hover:bg-slate-800 transition-all shadow-xl flex items-center justify-center gap-3 group active:scale-95"
+                                    >
+                                        <Printer className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                                        Print Protocol
+                                    </button>
+                                    <button 
+                                        onClick={downloadBarcodeJPG}
+                                        className="w-full bg-blue-600 text-white py-6 rounded-[2rem] font-black text-[10px] uppercase tracking-[0.3em] hover:bg-blue-500 transition-all shadow-xl shadow-blue-500/20 flex items-center justify-center gap-3 group active:scale-95 border border-blue-400/30"
+                                    >
+                                        <Download className="w-5 h-5 group-hover:translate-y-1 transition-transform" />
+                                        Download JPG
+                                    </button>
+                                </div>
                                 <div className="flex flex-col items-center gap-2">
                                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Hardware Sync: <span className="text-blue-600">Active</span></p>
                                     <p className="text-[9px] font-bold text-slate-300 uppercase tracking-widest text-center">

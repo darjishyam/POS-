@@ -104,6 +104,6 @@ export async function GET(req: NextRequest) {
         return NextResponse.json(chartData)
     } catch (error) {
         console.error('Reports Error:', error)
-        return NextResponse.json({ error: 'Failed to fetch intelligence dossier' }, { status: 500 })
+        return NextResponse.json({ error: 'Failed to fetch intelligence details' }, { status: 500 })
     }
 }

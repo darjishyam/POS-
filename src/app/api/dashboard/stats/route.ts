@@ -70,12 +70,24 @@ export async function GET(request: Request) {
             where: customerFilter
         })
 
-        // 6. Recent Sales (Always Last 5)
-        const recentSales = await (prisma as any).order.findMany({
-            take: 5,
-            orderBy: { createdAt: 'desc' },
-            include: { customer: { select: { name: true } } }
-        })
+        // 6. Unified Recent Ledger (Last 5 Sales + Last 5 Purchases, merged and sorted)
+        const [recentSales, recentPurchases] = await Promise.all([
+            (prisma as any).order.findMany({
+                take: 5,
+                orderBy: { createdAt: 'desc' },
+                include: { customer: { select: { name: true } } }
+            }),
+            (prisma as any).purchase.findMany({
+                take: 5,
+                orderBy: { createdAt: 'desc' },
+                include: { supplier: { select: { name: true } } }
+            })
+        ])
+
+        const recentTransactions = [
+            ...recentSales.map((s: any) => ({ ...s, type: 'SALE' })),
+            ...recentPurchases.map((p: any) => ({ ...p, type: 'PURCHASE' }))
+        ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 10)
 
         const revenue = salesStats._sum.totalAmount || 0
         const profit = isAdmin ? revenue - (totalCogs + expensesSum) : 0
@@ -110,6 +122,7 @@ export async function GET(request: Request) {
         let totalPurchases = 0
         let totalPurchaseDue = 0
         let totalPurchaseReturn = 0
+        let totalAmountPaidForPurchases = 0
         if (isAdmin) {
             const purchaseStats = await (prisma as any).purchase.aggregate({
                 where: { createdAt: dateFilter },
@@ -120,10 +133,10 @@ export async function GET(request: Request) {
                 _sum: { totalRefund: true }
             })
             totalPurchases = purchaseStats._sum.totalAmount || 0
-            const totalPaid = purchaseStats._sum.amountPaid || 0
+            totalAmountPaidForPurchases = purchaseStats._sum.amountPaid || 0
             totalPurchaseReturn = returnStats._sum.totalRefund || 0
             
-            totalPurchaseDue = Math.max(0, totalPurchases - totalPaid - totalPurchaseReturn)
+            totalPurchaseDue = Math.max(0, totalPurchases - totalAmountPaidForPurchases - totalPurchaseReturn)
         }
 
         // 9. Sales Return Totals
@@ -133,8 +146,57 @@ export async function GET(request: Request) {
         })
         const totalSalesReturn = salesReturnStats._sum.totalRefund || 0
 
-        // 10. All-Time Stats for Comparison (Optional)
-        const globalSales = await (prisma as any).order.aggregate({ _sum: { totalAmount: true } })
+        // 10. Financial Pillars (Mission Control Specific)
+        let stockValue = 0
+        let cashBalance = 0
+        let thisWeekSales = 0
+        let trueToCollect = 0
+
+        if (isAdmin) {
+            // A. True To Collect (Drafts & Quotations)
+            const pendingOrders = await (prisma as any).order.aggregate({
+                where: { 
+                    status: { in: ['PENDING', 'DRAFT', 'QUOTATION'] } 
+                },
+                _sum: { totalAmount: true }
+            });
+            trueToCollect = pendingOrders._sum.totalAmount || 0;
+
+            // B. Stock Value Calculation (Cost Based)
+            const productsWithLatestPurchase = await (prisma as any).product.findMany({
+                where: { stock: { gt: 0 } },
+                include: { 
+                    purchases: { 
+                        take: 1, 
+                        orderBy: { createdAt: 'desc' } 
+                    } 
+                }
+            })
+            
+            stockValue = productsWithLatestPurchase.reduce((sum: number, p: any) => {
+                const cost = p.purchases[0]?.unitCost || p.price * 0.7
+                return sum + (cost * p.stock)
+            }, 0)
+
+            // B. Bank & Cash Balance Calculation
+            // Cash In (All Sales) - Cash Out (All Purchase Payments + All Expenses)
+            const globalSalesSum = await (prisma as any).order.aggregate({ _sum: { totalAmount: true } })
+            const globalPurchasePaidSum = await (prisma as any).purchase.aggregate({ _sum: { amountPaid: true } })
+            const globalExpensesSum = await (prisma as any).expense.aggregate({ _sum: { amount: true } })
+            
+            cashBalance = (globalSalesSum._sum.totalAmount || 0) - 
+                          (globalPurchasePaidSum._sum.amountPaid || 0) - 
+                          (globalExpensesSum._sum.amount || 0)
+
+            // C. This Week Sales
+            const startOfWeek = new Date()
+            startOfWeek.setDate(startOfWeek.getDate() - 7)
+            const weekSalesAgg = await (prisma as any).order.aggregate({
+                where: { createdAt: { gte: startOfWeek } },
+                _sum: { totalAmount: true }
+            })
+            thisWeekSales = weekSalesAgg._sum.totalAmount || 0
+        }
 
         return NextResponse.json({
             revenue: revenue,
@@ -143,14 +205,20 @@ export async function GET(request: Request) {
             ordersCount: salesStats._count.id || 0,
             lowStockCount,
             totalCustomers,
-            recentSales,
+            recentSales: recentTransactions,
             chartData,
             totalPurchases,
             totalPurchaseDue,
             totalPurchaseReturn,
             totalSalesReturn,
-            totalSalesAllTime: globalSales._sum.totalAmount || 0,
-            netRevenue: revenue - expensesSum
+            totalSalesAllTime: totalPurchases, // Using purchases as proxy for stock value if needed, but we have stockValue now
+            netRevenue: revenue - expensesSum,
+            // New Metrics
+            toCollectProfit: trueToCollect, // Actual Pending Orders value, keeping key name for frontend compatibility
+            toPayDues: totalPurchaseDue,
+            stockValue,
+            cashBalance,
+            thisWeekSales
         })
     } catch (error) {
         console.error('Dashboard Stats Error:', error)

@@ -32,15 +32,52 @@ export async function POST(request: Request) {
         // Industrial Schema Validation
         const validation = productSchema.safeParse(body)
         if (!validation.success) {
+            console.error('POST Validation Error:', validation.error.format())
             return NextResponse.json({ 
                 error: 'Schema Validation Failure', 
                 details: validation.error.format() 
             }, { status: 400 })
         }
 
-        const product = await prisma.product.create({
-            data: validation.data
-        })
+        const { supplierId, purchaseCost, ...productInfo } = validation.data
+
+        let product;
+
+        // Perform transactional creation if Quick Buy protocol is engaged
+        if (supplierId && purchaseCost !== undefined && purchaseCost !== null && productInfo.stock > 0) {
+            product = await prisma.$transaction(async (tx: any) => {
+                // 1. Core Asset Creation
+                const newProduct = await tx.product.create({
+                    data: productInfo
+                });
+
+                // 2. Initializing Vendor Purchase Order (UNPAID)
+                const totalAmount = purchaseCost * productInfo.stock;
+                await tx.purchase.create({
+                    data: {
+                        supplierId: supplierId,
+                        totalAmount: totalAmount,
+                        amountPaid: 0,
+                        paymentStatus: "UNPAID",
+                        status: "RECEIVED",
+                        items: {
+                            create: [{
+                                productId: newProduct.id,
+                                quantity: productInfo.stock,
+                                unitCost: purchaseCost
+                            }]
+                        }
+                    }
+                });
+
+                return newProduct;
+            });
+        } else {
+            // Standard Isolated Creation
+            product = await prisma.product.create({
+                data: productInfo
+            })
+        }
 
         return NextResponse.json(product)
     } catch (error: any) {

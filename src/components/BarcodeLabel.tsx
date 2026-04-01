@@ -39,7 +39,7 @@ export default function BarcodeLabel({ value, name, price, currencySymbol }: Bar
                 <p className="text-xs font-black text-blue-600 mt-0.5 italic">{currencySymbol}{price}</p>
             </div>
             <div className="flex justify-center bg-white p-1 rounded border border-gray-50">
-                <svg ref={barcodeRef}></svg>
+                <svg ref={barcodeRef} className="max-w-[180px] h-auto"></svg>
             </div>
             <div className="text-center mt-1">
                 <p className="text-[8px] font-bold text-slate-300 uppercase tracking-[0.2em] italic">Identity Signature Required</p>

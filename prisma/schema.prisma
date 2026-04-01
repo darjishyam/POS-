@@ -8,11 +8,11 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  password  String
-  role      String   @default("USER")
+  id         String   @id @default(cuid())
+  email      String   @unique
+  name       String?
+  password   String
+  role       String   @default("USER")
   isVerified Boolean  @default(false)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
@@ -28,32 +28,32 @@ model OtpCode {
 }
 
 model Product {
-  id          String      @id @default(cuid())
-  name        String
-  description String?
-  price       Float
-  sku         String      @unique
-  image       String?     @default("https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&q=80&w=200")
-  stock       Int         @default(0)
-  categoryId  String?
-  brandId     String?
-  unitId      String?
-  barcodeType String?     @default("CODE128")
-  alertQuantity Int       @default(5)
-  manageStock Boolean     @default(true)
-  brochureUrl String?
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  items       OrderItem[]
-  purchases   PurchaseItem[]
-  category    Category?   @relation(fields: [categoryId], references: [id])
-  brand       Brand?      @relation(fields: [brandId], references: [id])
-  unit        Unit?       @relation(fields: [unitId], references: [id])
+  id              String               @id @default(cuid())
+  name            String
+  description     String?
+  price           Float
+  sku             String               @unique
+  image           String?              @default("https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&q=80&w=200")
+  stock           Int                  @default(0)
+  categoryId      String?
+  brandId         String?
+  unitId          String?
+  barcodeType     String?              @default("CODE128")
+  alertQuantity   Int                  @default(5)
+  manageStock     Boolean              @default(true)
+  brochureUrl     String?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
   locationStocks  LocationStock[]
-  transferItems   StockTransferItem[]
-  returns         SalesReturnItem[]
+  items           OrderItem[]
+  brand           Brand?               @relation(fields: [brandId], references: [id])
+  category        Category?            @relation(fields: [categoryId], references: [id])
+  unit            Unit?                @relation(fields: [unitId], references: [id])
+  purchases       PurchaseItem[]
   purchaseReturns PurchaseReturnItem[]
+  returns         SalesReturnItem[]
   shipmentItems   ShipmentItem[]
+  transferItems   StockTransferItem[]
 }
 
 model Brand {
@@ -88,12 +88,12 @@ model Category {
 }
 
 model CustomerGroup {
-  id          String     @id @default(cuid())
-  name        String     @unique
-  discount    Float      @default(0)
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-  customers   Customer[]
+  id        String     @id @default(cuid())
+  name      String     @unique
+  discount  Float      @default(0)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  customers Customer[]
 }
 
 model Customer {
@@ -104,41 +104,41 @@ model Customer {
   customerGroupId String?
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
-  orders          Order[]
   customerGroup   CustomerGroup? @relation(fields: [customerGroupId], references: [id])
+  orders          Order[]
 }
 
 model Order {
-  id             String      @id @default(cuid())
+  id             String        @id @default(cuid())
   totalAmount    Float
-  taxAmount      Float       @default(0)
-  discountAmount Float       @default(0)
-  paymentMethod  String      @default("CASH") // CASH, CARD, UPI
+  taxAmount      Float         @default(0)
+  discountAmount Float         @default(0)
+  paymentMethod  String        @default("CASH")
   upiId          String?
-  status         String      @default("COMPLETED")
+  status         String        @default("COMPLETED")
   userId         String?
   customerId     String?
   agentId        String?
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
-  customer       Customer?   @relation(fields: [customerId], references: [id])
-  user           User?       @relation(fields: [userId], references: [id])
-  agent          Agent?      @relation(fields: [agentId], references: [id])
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  agent          Agent?        @relation(fields: [agentId], references: [id])
+  customer       Customer?     @relation(fields: [customerId], references: [id])
+  user           User?         @relation(fields: [userId], references: [id])
   items          OrderItem[]
   returns        SalesReturn[]
   shipments      Shipment[]
 }
 
 model SalesReturn {
-  id             String            @id @default(cuid())
-  orderId        String
-  reason         String?
-  totalRefund    Float
-  status         String            @default("COMPLETED") // COMPLETED, CANCELLED
-  createdAt      DateTime          @default(now())
-  updatedAt      DateTime          @updatedAt
-  order          Order             @relation(fields: [orderId], references: [id])
-  items          SalesReturnItem[]
+  id          String            @id @default(cuid())
+  orderId     String
+  reason      String?
+  totalRefund Float
+  status      String            @default("COMPLETED")
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  order       Order             @relation(fields: [orderId], references: [id])
+  items       SalesReturnItem[]
 }
 
 model SalesReturnItem {
@@ -146,24 +146,24 @@ model SalesReturnItem {
   salesReturnId String
   productId     String
   quantity      Int
-  price         Float       // Price at time of return
-  salesReturn   SalesReturn @relation(fields: [salesReturnId], references: [id])
+  price         Float
   product       Product     @relation(fields: [productId], references: [id])
+  salesReturn   SalesReturn @relation(fields: [salesReturnId], references: [id])
 }
 
 model Shipment {
-  id               String         @id @default(cuid())
-  orderId          String
-  carrier          String         @default("SELF") // SELF, FEDEX, UPS, etc.
-  trackingNumber   String?
-  status           String         @default("PENDING") // PENDING, DISPATCHED, IN_TRANSIT, DELIVERED, FAILED
+  id                String         @id @default(cuid())
+  orderId           String
+  carrier           String         @default("SELF")
+  trackingNumber    String?
+  status            String         @default("PENDING")
   estimatedDelivery DateTime?
-  shippedAt        DateTime?
-  deliveredAt      DateTime?
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
-  order            Order          @relation(fields: [orderId], references: [id])
-  items            ShipmentItem[]
+  shippedAt         DateTime?
+  deliveredAt       DateTime?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  order             Order          @relation(fields: [orderId], references: [id])
+  items             ShipmentItem[]
 }
 
 model ShipmentItem {
@@ -171,8 +171,8 @@ model ShipmentItem {
   shipmentId String
   productId  String
   quantity   Int
-  shipment   Shipment @relation(fields: [shipmentId], references: [id])
   product    Product  @relation(fields: [productId], references: [id])
+  shipment   Shipment @relation(fields: [shipmentId], references: [id])
 }
 
 model Agent {
@@ -180,7 +180,7 @@ model Agent {
   name           String
   email          String?  @unique
   phone          String?  @unique
-  commissionRate Float    @default(5.0) // Percentage
+  commissionRate Float    @default(5.0)
   isActive       Boolean  @default(true)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -212,44 +212,44 @@ model Supplier {
 }
 
 model Purchase {
-  id              String         @id @default(cuid())
+  id              String            @id @default(cuid())
   supplierId      String
   locationId      String?
   totalAmount     Float
-  amountPaid      Float          @default(0)
-  paymentStatus   String         @default("PAID") // PAID, PARTIAL, DUE
-  paymentMethod   String         @default("CASH") // CASH, CARD, UPI, CREDIT
+  amountPaid      Float             @default(0)
+  paymentStatus   String            @default("PAID")
+  paymentMethod   String            @default("CASH")
   referenceNumber String?
-  status          String         @default("RECEIVED")
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
-  supplier        Supplier       @relation(fields: [supplierId], references: [id])
-  location        Location?      @relation(fields: [locationId], references: [id])
+  status          String            @default("RECEIVED")
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  location        Location?         @relation(fields: [locationId], references: [id])
+  supplier        Supplier          @relation(fields: [supplierId], references: [id])
   items           PurchaseItem[]
   payments        PurchasePayment[]
   returns         PurchaseReturn[]
 }
 
 model PurchasePayment {
-  id            String   @id @default(cuid())
-  purchaseId    String
-  amount        Float
-  method        String   @default("CASH")
-  reference     String?
-  date          DateTime @default(now())
-  purchase      Purchase @relation(fields: [purchaseId], references: [id])
+  id         String   @id @default(cuid())
+  purchaseId String
+  amount     Float
+  method     String   @default("CASH")
+  reference  String?
+  date       DateTime @default(now())
+  purchase   Purchase @relation(fields: [purchaseId], references: [id])
 }
 
 model PurchaseReturn {
-  id             String               @id @default(cuid())
-  purchaseId     String
-  reason         String?
-  totalRefund    Float
-  status         String               @default("COMPLETED")
-  createdAt      DateTime             @default(now())
-  updatedAt      DateTime             @updatedAt
-  purchase       Purchase             @relation(fields: [purchaseId], references: [id])
-  items          PurchaseReturnItem[]
+  id          String               @id @default(cuid())
+  purchaseId  String
+  reason      String?
+  totalRefund Float
+  status      String               @default("COMPLETED")
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  purchase    Purchase             @relation(fields: [purchaseId], references: [id])
+  items       PurchaseReturnItem[]
 }
 
 model PurchaseReturnItem {
@@ -258,8 +258,8 @@ model PurchaseReturnItem {
   productId        String
   quantity         Int
   unitCost         Float
-  purchaseReturn   PurchaseReturn @relation(fields: [purchaseReturnId], references: [id])
   product          Product        @relation(fields: [productId], references: [id])
+  purchaseReturn   PurchaseReturn @relation(fields: [purchaseReturnId], references: [id])
 }
 
 model PurchaseItem {
@@ -270,8 +270,8 @@ model PurchaseItem {
   unitCost   Float
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
-  purchase   Purchase @relation(fields: [purchaseId], references: [id])
   product    Product  @relation(fields: [productId], references: [id])
+  purchase   Purchase @relation(fields: [purchaseId], references: [id])
 }
 
 model ExpenseCategory {
@@ -284,27 +284,27 @@ model ExpenseCategory {
 }
 
 model Expense {
-  id          String   @id @default(cuid())
+  id          String           @id @default(cuid())
   amount      Float
   description String
   categoryId  String?
-  date        DateTime @default(now())
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  date        DateTime         @default(now())
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
   category    ExpenseCategory? @relation(fields: [categoryId], references: [id])
 }
 
 model Location {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  address   String?
-  type      String   @default("STORE") // STORE, WAREHOUSE
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String          @id @default(cuid())
+  name          String          @unique
+  address       String?
+  type          String          @default("STORE")
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  stocks        LocationStock[]
+  purchases     Purchase[]
   fromTransfers StockTransfer[] @relation("FromLocation")
   toTransfers   StockTransfer[] @relation("ToLocation")
-  stocks    LocationStock[]
-  purchases Purchase[]
 }
 
 model LocationStock {
@@ -312,8 +312,9 @@ model LocationStock {
   productId  String
   locationId String
   quantity   Int      @default(0)
-  product    Product  @relation(fields: [productId], references: [id])
   location   Location @relation(fields: [locationId], references: [id])
+  product    Product  @relation(fields: [productId], references: [id])
+
   @@unique([productId, locationId])
 }
 
@@ -322,33 +323,33 @@ model StockTransfer {
   fromLocationId String
   toLocationId   String
   referenceNo    String?
-  status         String              @default("PENDING") // PENDING, COMPLETED, CANCELLED
-  items          StockTransferItem[]
+  status         String              @default("PENDING")
   createdAt      DateTime            @default(now())
   updatedAt      DateTime            @updatedAt
   fromLocation   Location            @relation("FromLocation", fields: [fromLocationId], references: [id])
   toLocation     Location            @relation("ToLocation", fields: [toLocationId], references: [id])
+  items          StockTransferItem[]
 }
 
 model StockTransferItem {
-  id              String        @id @default(cuid())
-  transferId      String
-  productId       String
-  quantity        Int
-  transfer        StockTransfer @relation(fields: [transferId], references: [id])
-  product         Product       @relation(fields: [productId], references: [id])
+  id         String        @id @default(cuid())
+  transferId String
+  productId  String
+  quantity   Int
+  product    Product       @relation(fields: [productId], references: [id])
+  transfer   StockTransfer @relation(fields: [transferId], references: [id])
 }
 
 model Setting {
-  id            String   @id @default("system")
-  storeName     String   @default("BardPOS")
-  currency      String   @default("INR")
-  currencySymbol String  @default("₹")
-  taxRate       Float    @default(0)
-  address       String?
-  phone         String?
-  email         String?
-  logo          String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id             String   @id @default("system")
+  storeName      String   @default("BardPOS")
+  currency       String   @default("INR")
+  currencySymbol String   @default("₹")
+  taxRate        Float    @default(0)
+  address        String?
+  phone          String?
+  email          String?
+  logo           String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 }

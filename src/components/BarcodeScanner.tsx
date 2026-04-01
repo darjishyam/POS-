@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import { Html5QrcodeScanner, Html5QrcodeSupportedFormats } from 'html5-qrcode'
+import { Html5QrcodeScanner, Html5QrcodeSupportedFormats, Html5QrcodeScanType } from 'html5-qrcode'
 import { X, Camera, Zap } from 'lucide-react'
 
 interface BarcodeScannerProps {
@@ -25,6 +25,10 @@ export default function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps)
                 qrbox: { width: 250, height: 150 },
                 aspectRatio: 1.777778, // 16:9
                 showTorchButtonIfSupported: true,
+                supportedScanTypes: [
+                    Html5QrcodeScanType.SCAN_TYPE_CAMERA,
+                    Html5QrcodeScanType.SCAN_TYPE_FILE
+                ],
                 formatsToSupport: [
                     Html5QrcodeSupportedFormats.EAN_13,
                     Html5QrcodeSupportedFormats.EAN_8,

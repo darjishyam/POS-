@@ -25,6 +25,7 @@ import {
     IndianRupee,
     Download
 } from 'lucide-react'
+import Link from 'next/link'
 import * as XLSX from 'xlsx'
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
@@ -460,8 +461,15 @@ export default function OrdersClient() {
                                                     )
                                                 )}
 
-                                                {(order.status === 'COMPLETED' || order.status === 'RETURN_REQUESTED') && (
+                                                {(order.status === 'COMPLETED' || order.status === 'RETURN_REQUESTED' || order.status === 'RETURNED') && (
                                                     <div className="flex gap-2">
+                                                        <Link 
+                                                            href={`/dashboard/orders/${order.id}`}
+                                                            className="p-3 bg-white hover:bg-slate-950 text-slate-400 hover:text-white rounded-xl border border-slate-100 hover:border-slate-950 transition-all group/view shadow-sm active:scale-95"
+                                                            title="View Details"
+                                                        >
+                                                            <Eye className="w-4 h-4 group-hover/view:scale-110 transition-transform" />
+                                                        </Link>
                                                         {order.status === 'COMPLETED' && (
                                                             <button 
                                                                 onClick={() => handleShip(order)}

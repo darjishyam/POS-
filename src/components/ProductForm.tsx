@@ -14,7 +14,8 @@ import {
     Image as ImageIcon,
     Tag,
     ChevronDown,
-    PlusCircle
+    PlusCircle,
+    Truck
 } from 'lucide-react'
 import { toast, Toaster } from 'react-hot-toast'
 
@@ -28,6 +29,7 @@ export default function ProductForm({ initialData, onSave, onCancel }: ProductFo
     const [categories, setCategories] = useState<any[]>([])
     const [brands, setBrands] = useState<any[]>([])
     const [units, setUnits] = useState<any[]>([])
+    const [suppliers, setSuppliers] = useState<any[]>([])
     const fileInputRef = useRef<HTMLInputElement>(null)
     const docInputRef = useRef<HTMLInputElement>(null)
     const [isUploading, setIsUploading] = useState(false)
@@ -46,25 +48,30 @@ export default function ProductForm({ initialData, onSave, onCancel }: ProductFo
         stock: initialData?.stock || 0,
         description: initialData?.description || '',
         image: initialData?.image || '',
-        brochureUrl: initialData?.brochureUrl || ''
+        brochureUrl: initialData?.brochureUrl || '',
+        supplierId: initialData?.supplierId || '',
+        purchaseCost: initialData?.purchaseCost || ''
     })
 
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [catRes, brandRes, unitRes] = await Promise.all([
+                const [catRes, brandRes, unitRes, suppRes] = await Promise.all([
                     fetch('/api/categories'),
                     fetch('/api/brands'),
-                    fetch('/api/units')
+                    fetch('/api/units'),
+                    fetch('/api/suppliers')
                 ])
-                const [catData, brandData, unitData] = await Promise.all([
+                const [catData, brandData, unitData, suppData] = await Promise.all([
                     catRes.json(),
                     brandRes.json(),
-                    unitRes.json()
+                    unitRes.json(),
+                    suppRes.json()
                 ])
                 setCategories(Array.isArray(catData) ? catData : [])
                 setBrands(Array.isArray(brandData) ? brandData : [])
                 setUnits(Array.isArray(unitData) ? unitData : [])
+                setSuppliers(Array.isArray(suppData) ? suppData : [])
             } catch (error) {
                 console.error('Fetch Error:', error)
             }
@@ -169,7 +176,9 @@ export default function ProductForm({ initialData, onSave, onCancel }: ProductFo
             ...formData,
             price: parseFloat(formData.price.toString()),
             stock: parseInt(formData.stock.toString()),
-            alertQuantity: parseInt(formData.alertQuantity.toString())
+            alertQuantity: parseInt(formData.alertQuantity.toString()),
+            purchaseCost: formData.purchaseCost ? parseFloat(formData.purchaseCost.toString()) : undefined,
+            supplierId: formData.supplierId || undefined
         })
     }
 
@@ -392,6 +401,60 @@ export default function ProductForm({ initialData, onSave, onCancel }: ProductFo
                                     value={formData.stock}
                                     onChange={(e) => setFormData({...formData, stock: e.target.value})}
                                 />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Quick Buy Purchase Integration (Optional) */}
+                    <div className="bg-gradient-to-br from-indigo-50 to-white rounded-[3rem] border border-indigo-100 shadow-2xl p-8 space-y-6 relative overflow-hidden">
+                        <div className="absolute top-0 right-0 p-6 opacity-10">
+                            <Truck className="w-24 h-24 text-indigo-900" />
+                        </div>
+                        <div className="relative z-10 space-y-6">
+                            <div>
+                                <h3 className="text-xl font-black text-indigo-900 tracking-tighter italic uppercase flex items-center gap-2">
+                                    Quick Buy <span className="text-[10px] bg-indigo-100 text-indigo-600 px-2 py-1 rounded-full font-black NOT-italic tracking-widest">OPTIONAL</span>
+                                </h3>
+                                <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mt-1">Simultaneously originate vendor purchase order</p>
+                            </div>
+                            
+                            <div className="space-y-4">
+                                <div className="space-y-3">
+                                    <label className="text-[10px] font-black text-indigo-400/80 uppercase tracking-widest ml-2">Primary Vendor (Supplier)</label>
+                                    <div className="relative">
+                                        <select 
+                                            className="w-full p-6 bg-white/60 backdrop-blur-sm border-none rounded-[1.5rem] focus:bg-white focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all font-bold text-slate-800 appearance-none shadow-sm"
+                                            value={formData.supplierId}
+                                            onChange={(e) => setFormData({...formData, supplierId: e.target.value})}
+                                        >
+                                            <option value="">No Initial Purchase...</option>
+                                            {suppliers.map(sup => (
+                                                <option key={sup.id} value={sup.id}>{sup.name}</option>
+                                            ))}
+                                        </select>
+                                        <ChevronDown className="w-5 h-5 absolute right-6 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                                    </div>
+                                </div>
+
+                                {formData.supplierId && (
+                                    <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                                        <label className="text-[10px] font-black text-indigo-400/80 uppercase tracking-widest ml-2">Unit Purchase Cost</label>
+                                        <div className="relative">
+                                            <span className="absolute left-6 top-1/2 -translate-y-1/2 text-lg font-black text-slate-300 italic">₹</span>
+                                            <input 
+                                                required
+                                                type="number" step="0.01"
+                                                placeholder="0.00"
+                                                className="w-full p-6 pl-12 bg-white/60 backdrop-blur-sm border-none rounded-[1.5rem] focus:bg-white focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all font-black text-xl text-indigo-900 italic tracking-tighter shadow-sm"
+                                                value={formData.purchaseCost}
+                                                onChange={(e) => setFormData({...formData, purchaseCost: e.target.value})}
+                                            />
+                                        </div>
+                                        <p className="text-[9px] font-bold text-indigo-500 text-center uppercase tracking-widest mt-2">
+                                            Logs as <span className="text-rose-500">UNPAID</span> purchase order in ledger
+                                        </p>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>

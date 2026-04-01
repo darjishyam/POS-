@@ -20,8 +20,10 @@ import {
     Sparkles,
     IndianRupee,
     Download,
-    FileText
+    FileText,
+    Eye
 } from 'lucide-react'
+import Link from 'next/link'
 import * as XLSX from 'xlsx'
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
@@ -504,8 +506,15 @@ export default function PurchasesClient() {
                                                 </div>
                                             </div>
                                         </td>
-                                        <td className="px-8 py-6 text-center">
+                                        <td className="px-8 py-6">
                                             <div className="flex items-center justify-center gap-3">
+                                                <Link 
+                                                    href={`/dashboard/purchases/${purchase.id}`}
+                                                    className="p-4 bg-white hover:bg-slate-950 text-slate-400 hover:text-white rounded-xl border border-slate-100 hover:border-slate-950 transition-all group/view shadow-sm active:scale-95"
+                                                    title="View Details"
+                                                >
+                                                    <Eye className="w-4 h-4 group-hover/view:scale-110 transition-transform" />
+                                                </Link>
                                                 {purchase.status === 'ORDERED' && (
                                                     <button 
                                                         onClick={() => handleReceive(purchase.id)}
@@ -707,24 +716,28 @@ export default function PurchasesClient() {
                                                     {products.map(p => <option key={p.id} value={p.id}>{p.name.toUpperCase()} (CURR: ₹{p.price})</option>)}
                                                 </select>
                                                 {item.productId && (
-                                                    <div className="flex items-center gap-4 mt-2 px-2 animate-in fade-in slide-in-from-left-2 duration-300">
+                                                    <div className="flex items-center gap-4 mt-4 px-2 animate-in fade-in slide-in-from-left-2 duration-300">
                                                         <button 
                                                             type="button"
                                                             onClick={() => updateItem(index, 'syncPrice', !item.syncPrice)}
-                                                            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-[8px] font-black uppercase tracking-widest transition-all ${item.syncPrice ? 'bg-indigo-600 text-white border-indigo-500 shadow-md shadow-indigo-200' : 'bg-white text-slate-400 border-slate-100 hover:border-indigo-200'}`}
+                                                            className={`flex items-center gap-3 px-6 py-3 rounded-xl border-2 text-xs font-black uppercase tracking-widest transition-all shadow-sm block ${item.syncPrice ? 'bg-indigo-600 text-white border-indigo-500 shadow-lg shadow-indigo-200/50 scale-105' : 'bg-blue-50/50 text-blue-600 border-blue-200 hover:border-indigo-400 hover:bg-white hover:shadow-md'}`}
                                                         >
-                                                            <Sparkles className="w-3 h-3" />
-                                                            {item.syncPrice ? 'Pricing Sync Active' : 'Sync Selling Price?'}
+                                                            <Sparkles className="w-5 h-5 animate-pulse" />
+                                                            {item.syncPrice ? '✨ CUSTOM MSRP ACTIVE ✨' : 'UPDATE SELLING PRICE (MSRP)'}
                                                         </button>
                                                         {item.syncPrice && (
-                                                            <div className="flex items-center gap-2 bg-indigo-50 px-3 py-1 rounded-lg border border-indigo-100">
-                                                                <span className="text-[8px] font-black text-indigo-400 uppercase tracking-widest">New MSRP:</span>
-                                                                <input 
-                                                                    type="number" step="0.01"
-                                                                    value={item.newPrice}
-                                                                    onChange={(e) => updateItem(index, 'newPrice', parseFloat(e.target.value))}
-                                                                    className="w-16 bg-transparent border-none text-[10px] font-black text-indigo-700 focus:ring-0 p-0"
-                                                                />
+                                                            <div className="flex items-center gap-3 bg-indigo-50 px-5 py-3 rounded-xl border-2 border-indigo-200 shadow-inner">
+                                                                <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">New MSRP:</span>
+                                                                <div className="relative flex items-center">
+                                                                    <span className="absolute left-2 text-indigo-700 font-bold shrink-0">₹</span>
+                                                                    <input 
+                                                                        type="number" step="0.01"
+                                                                        value={item.newPrice}
+                                                                        onChange={(e) => updateItem(index, 'newPrice', parseFloat(e.target.value))}
+                                                                        className="w-28 pl-7 bg-white rounded-md border text-sm font-black text-indigo-900 focus:ring-4 focus:ring-indigo-500/20 p-2 outline-none transition-all shadow-sm"
+                                                                        placeholder="0.00"
+                                                                    />
+                                                                </div>
                                                             </div>
                                                         )}
                                                     </div>

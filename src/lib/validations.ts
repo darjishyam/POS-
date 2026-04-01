@@ -12,7 +12,9 @@ export const productSchema = z.object({
     unitId: z.string().optional().nullable(),
     alertQuantity: z.number().int().default(5),
     manageStock: z.boolean().default(true),
-    brochureUrl: z.string().optional()
+    brochureUrl: z.string().optional(),
+    supplierId: z.string().optional().nullable(),
+    purchaseCost: z.number().min(0, "Purchase Cost must be positive").optional().nullable()
 })
 
 export const categorySchema = z.object({

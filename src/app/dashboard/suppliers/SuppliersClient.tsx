@@ -185,7 +185,7 @@ export default function SuppliersClient() {
         })
 
         doc.save(`BardPOS_Vendors_${new Date().toISOString().split('T')[0]}.pdf`)
-        toast.success('High-Fidelity PDF Dossier Exported')
+        toast.success('High-Fidelity PDF Details Exported')
     }
 
     return (
