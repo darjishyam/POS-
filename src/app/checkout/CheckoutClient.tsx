@@ -245,7 +245,8 @@ export default function CheckoutClient() {
                     toast.success('System Asset Acquisition Complete', { duration: 4000 })
                 }
             } else {
-                toast.error('Authorization Protocol Failure')
+                const errorData = await res.json().catch(() => ({}));
+                toast.error(errorData.error || 'Authorization Protocol Failure')
                 setStatus('idle')
             }
         } catch (error) {

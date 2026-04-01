@@ -126,7 +126,7 @@ export default function SettingsClient() {
                                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1">Legal Entity Name</label>
                                 <input
                                     type="text"
-                                    value={settings.storeName}
+                                    value={settings.storeName || ''}
                                     onChange={(e) => setSettings({ ...settings, storeName: e.target.value })}
                                     className="w-full p-6 bg-slate-50 border-none rounded-2xl focus:bg-white focus:ring-4 focus:ring-blue-500/10 outline-none transition-all font-bold text-slate-800 text-lg tracking-tight"
                                 />
@@ -135,7 +135,7 @@ export default function SettingsClient() {
                                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1">Visual Asset URL (Logo)</label>
                                 <input
                                     type="text"
-                                    value={settings.logo}
+                                    value={settings.logo || ''}
                                     onChange={(e) => setSettings({ ...settings, logo: e.target.value })}
                                     className="w-full p-6 bg-slate-50 border-none rounded-2xl focus:bg-white focus:ring-4 focus:ring-blue-500/10 outline-none transition-all font-bold text-slate-800"
                                     placeholder="https://..."
@@ -161,7 +161,7 @@ export default function SettingsClient() {
                                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1">Currency Code</label>
                                 <input
                                     type="text"
-                                    value={settings.currency}
+                                    value={settings.currency || ''}
                                     onChange={(e) => setSettings({ ...settings, currency: e.target.value })}
                                     className="w-full p-6 bg-slate-50 border-none rounded-2xl focus:bg-white focus:ring-4 focus:ring-blue-500/10 outline-none transition-all font-bold text-slate-800"
                                     placeholder="USD"
@@ -171,7 +171,7 @@ export default function SettingsClient() {
                                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1">Symbol</label>
                                 <input
                                     type="text"
-                                    value={settings.currencySymbol}
+                                    value={settings.currencySymbol || ''}
                                     onChange={(e) => setSettings({ ...settings, currencySymbol: e.target.value })}
                                     className="w-full p-6 bg-slate-50 border-none rounded-2xl focus:bg-white focus:ring-4 focus:ring-blue-500/10 outline-none transition-all font-bold text-slate-800"
                                     placeholder="₹"
@@ -181,7 +181,7 @@ export default function SettingsClient() {
                                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1">Taxation Protocol (%)</label>
                                 <input
                                     type="number"
-                                    value={settings.taxRate}
+                                    value={settings.taxRate ?? 0}
                                     onChange={(e) => setSettings({ ...settings, taxRate: e.target.value })}
                                     className="w-full p-6 bg-slate-50 border-none rounded-2xl focus:bg-white focus:ring-4 focus:ring-blue-500/10 outline-none transition-all font-bold text-slate-800"
                                     placeholder="0"
@@ -206,7 +206,7 @@ export default function SettingsClient() {
                             <div className="space-y-3">
                                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1">Physical Address</label>
                                 <textarea
-                                    value={settings.address}
+                                    value={settings.address || ''}
                                     onChange={(e) => setSettings({ ...settings, address: e.target.value })}
                                     className="w-full p-6 bg-slate-50 border-none rounded-2xl focus:bg-white focus:ring-4 focus:ring-blue-500/10 outline-none transition-all font-bold text-slate-800 h-32 resize-none"
                                     placeholder="Global HQ Address..."
@@ -217,7 +217,7 @@ export default function SettingsClient() {
                                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1">Support Hotline</label>
                                     <input
                                         type="text"
-                                        value={settings.phone}
+                                        value={settings.phone || ''}
                                         onChange={(e) => setSettings({ ...settings, phone: e.target.value })}
                                         className="w-full p-6 bg-slate-50 border-none rounded-2xl focus:bg-white focus:ring-4 focus:ring-blue-500/10 outline-none transition-all font-bold text-slate-800"
                                         placeholder="+1..."
@@ -227,7 +227,7 @@ export default function SettingsClient() {
                                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1">System Email Registry</label>
                                     <input
                                         type="email"
-                                        value={settings.email}
+                                        value={settings.email || ''}
                                         onChange={(e) => setSettings({ ...settings, email: e.target.value })}
                                         className="w-full p-6 bg-slate-50 border-none rounded-2xl focus:bg-white focus:ring-4 focus:ring-blue-500/10 outline-none transition-all font-bold text-slate-800"
                                         placeholder="admin@bardpos.hq"

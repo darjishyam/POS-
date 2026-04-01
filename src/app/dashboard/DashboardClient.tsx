@@ -22,7 +22,7 @@ const StatCard = ({ title, value, icon, color, subtitle, currencySymbol, onClick
     }
 
     return (
-        <div 
+        <div
             onClick={onClick}
             className={`bg-white/80 backdrop-blur-xl p-8 rounded-[2.5rem] border border-white shadow-xl shadow-gray-200/50 transition-all hover:scale-[1.05] hover:shadow-2xl group ${onClick ? 'cursor-pointer' : 'cursor-default'}`}
         >
@@ -64,17 +64,30 @@ export default function DashboardClient({ isAdmin: serverIsAdmin }: DashboardCli
 
     useEffect(() => {
         setMounted(true)
-        setLoading(true)
-        fetch(`/api/dashboard/stats?range=${range}`)
-            .then(res => res.json())
-            .then(data => {
+        
+        const fetchStats = async (isBackground = false) => {
+            if (!isBackground) setLoading(true)
+            try {
+                const res = await fetch(`/api/dashboard/stats?range=${range}`)
+                const data = await res.json()
                 setStats(data || {})
-                setLoading(false)
-            })
-            .catch(err => {
-                console.error(err)
-                setLoading(false)
-            })
+            } catch (err) {
+                console.error('Magic Sync Error:', err)
+            } finally {
+                if (!isBackground) setLoading(false)
+            }
+        }
+
+        // Initial fetch block
+        fetchStats()
+
+        // Magic Sync Polling: Silently fetches new data every cycle
+        const syncInterval = setInterval(() => {
+            fetchStats(true)
+        }, 3500)
+
+        // Cleanup interval on unmount
+        return () => clearInterval(syncInterval)
     }, [range])
 
     const ranges = [
@@ -108,8 +121,8 @@ export default function DashboardClient({ isAdmin: serverIsAdmin }: DashboardCli
                                     key={r.id}
                                     onClick={() => setRange(r.id)}
                                     className={`px-8 py-3 rounded-[1.5rem] text-[9px] font-black tracking-[0.2em] transition-all duration-500 ${range === r.id
-                                            ? "bg-slate-950 text-white shadow-lg shadow-slate-200"
-                                            : "text-slate-400 hover:text-slate-900 hover:bg-white"
+                                        ? "bg-slate-950 text-white shadow-lg shadow-slate-200"
+                                        : "text-slate-400 hover:text-slate-900 hover:bg-white"
                                         }`}
                                 >
                                     {r.label}
@@ -126,48 +139,84 @@ export default function DashboardClient({ isAdmin: serverIsAdmin }: DashboardCli
                 </div>
 
                 {/* Primary Stat Pillars (Mission Control) */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    <StatCard 
-                        currencySymbol={settings.currencySymbol} 
-                        title="To Collect" 
-                        subtitle="UNPAID INVOICES" 
-                        value={(stats?.toCollectProfit || 0).toFixed(2)} 
-                        color="green" 
-                        icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>} 
-                        onClick={() => window.location.href = '/dashboard/orders'}
-                    />
-                    <StatCard 
-                        currencySymbol={settings.currencySymbol} 
-                        title="To Pay" 
-                        subtitle="UNPAID DEBT LIABILITY" 
-                        value={(stats?.toPayDues || 0).toFixed(2)} 
-                        color="orange" 
-                        icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M16 15v-1a4 4 0 00-4-4H8m0 0l3 3m-3-3l3-3m9 14V5a2 2 0 00-2-2H6a2 2 0 00-2 2v16l4-2 4 2 4-2 4 2z" /></svg>} 
-                        onClick={() => window.location.href = '/dashboard/purchases'}
-                    />
-                    <StatCard 
-                        currencySymbol={settings.currencySymbol} 
-                        title="Stock Value" 
-                        subtitle="MATERIAL ASSET INDEX" 
-                        value={(stats?.stockValue || 0).toFixed(2)} 
-                        color="indigo" 
-                        icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>} 
-                        onClick={() => window.location.href = '/dashboard/inventory'}
-                    />
-                    <StatCard 
-                        currencySymbol={settings.currencySymbol} 
-                        title="Bank & Cash" 
-                        subtitle="LIQUID CAPITAL RESERVE" 
-                        value={(stats?.cashBalance || 0).toFixed(2)} 
-                        color="blue" 
-                        icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>} 
-                        onClick={() => window.location.href = '/dashboard/reports?type=profit-loss'}
-                    />
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    {/* Shopkeeper Hero Card: Total Balance */}
+                    <div className="bg-white/90 backdrop-blur-xl rounded-[2.5rem] p-8 shadow-xl shadow-gray-200/50 border border-white flex flex-col justify-between h-full transition-all hover:scale-[1.02] hover:shadow-2xl">
+                        <div>
+                            <div className="flex items-center gap-1.5 justify-start">
+                                <span className="text-xl font-black text-slate-400 italic">{settings.currencySymbol}</span>
+                                <span className="text-5xl font-black text-slate-900 tracking-tighter italic leading-none">
+                                    {(stats?.cashBalance || 0).toLocaleString()}
+                                </span>
+                            </div>
+                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mt-3 italic">Total Balance</p>
+                        </div>
+                        <div className="mt-8 space-y-3">
+                            <div className="flex justify-between items-center bg-emerald-50/50 p-4 rounded-2xl border border-emerald-100 group">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 group-hover:scale-110 transition-transform">
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                                    </div>
+                                    <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest italic">Cash Balance</span>
+                                </div>
+                                <span className="font-black text-emerald-600 italic tracking-tighter text-lg">{settings.currencySymbol}{(stats?.trueCashBalance || 0).toLocaleString()}</span>
+                            </div>
+                            <div className="flex justify-between items-center bg-blue-50/50 p-4 rounded-2xl border border-blue-100 group">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 group-hover:scale-110 transition-transform">
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>
+                                    </div>
+                                    <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest italic">Bank Balance</span>
+                                </div>
+                                <span className="font-black text-blue-600 italic tracking-tighter text-lg">{settings.currencySymbol}{(stats?.trueBankBalance || 0).toLocaleString()}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Standard Metrics Grid */}
+                    <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <StatCard 
+                            currencySymbol={settings.currencySymbol} 
+                            title="To Collect" 
+                            subtitle="TO COLLECT" 
+                            value={(stats?.toCollectProfit || 0).toLocaleString()} 
+                            color="green" 
+                            icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg>} 
+                            onClick={() => window.location.href = '/dashboard/orders'}
+                        />
+                        <StatCard 
+                            currencySymbol={settings.currencySymbol} 
+                            title="To Pay" 
+                            subtitle="TO PAY" 
+                            value={(stats?.toPayDues || 0).toLocaleString()} 
+                            color="red" 
+                            icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg>} 
+                            onClick={() => window.location.href = '/dashboard/purchases'}
+                        />
+                        <StatCard 
+                            currencySymbol={settings.currencySymbol} 
+                            title="Stock Value" 
+                            subtitle="VALUE OF ITEMS" 
+                            value={(stats?.stockValue || 0).toLocaleString()} 
+                            color="indigo" 
+                            icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>} 
+                            onClick={() => window.location.href = '/dashboard/inventory'}
+                        />
+                        <StatCard 
+                            currencySymbol={settings.currencySymbol} 
+                            title="Sales" 
+                            subtitle="THIS WEEK'S SALE" 
+                            value={(stats?.thisWeekSales || 0).toLocaleString()} 
+                            color="blue" 
+                            icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>} 
+                            onClick={() => window.location.href = '/dashboard/reports?type=profit-loss'}
+                        />
+                    </div>
                 </div>
 
                 {/* Primary Operational Context */}
                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-12">
-                    
+
                     {/* Primary Focus: Unified Ledger (Expanded) */}
                     <div className="lg:col-span-3 bg-white/80 backdrop-blur-xl rounded-[3.5rem] border border-white shadow-2xl shadow-gray-200/50 overflow-hidden">
                         <div className="p-10 border-b border-gray-100 bg-slate-50/50 flex justify-between items-center">
@@ -205,9 +254,9 @@ export default function DashboardClient({ isAdmin: serverIsAdmin }: DashboardCli
                                 <div className="p-32 text-center">
                                     <p className="text-[12px] font-black text-slate-300 uppercase tracking-[0.5em] italic">No transaction signatures recorded.</p>
                                 </div>
-                             ) : (stats?.recentSales || []).map((sale: any) => (
-                                <div 
-                                    key={`${sale.type}-${sale.id}`} 
+                            ) : (stats?.recentSales || []).map((sale: any) => (
+                                <div
+                                    key={`${sale.type}-${sale.id}`}
                                     onClick={() => {
                                         window.location.href = `/dashboard/${sale.type === 'SALE' ? 'orders' : 'purchases'}/${sale.id}`
                                     }}
@@ -231,7 +280,7 @@ export default function DashboardClient({ isAdmin: serverIsAdmin }: DashboardCli
                                             {sale.type === 'SALE' ? '+' : '-'}{settings.currencySymbol}{sale.totalAmount.toFixed(2)}
                                         </div>
                                         <div className="flex gap-4 opacity-0 group-hover:opacity-100 transition-all transform translate-y-2 group-hover:translate-y-0">
-                                            <Link 
+                                            <Link
                                                 href={`/dashboard/${sale.type === 'SALE' ? 'orders' : 'purchases'}/${sale.id}`}
                                                 className="text-[9px] font-black text-blue-600 hover:text-slate-950 uppercase tracking-widest italic underline underline-offset-4"
                                             >
@@ -246,9 +295,9 @@ export default function DashboardClient({ isAdmin: serverIsAdmin }: DashboardCli
 
                     {/* Secondary Column: Reporting Transition + Weekly Goal */}
                     <div className="lg:col-span-1 space-y-8">
-                        
+
                         {/* Intelligence Center Transition */}
-                        <Link 
+                        <Link
                             href="/dashboard/reports?type=profit-loss"
                             className="block bg-blue-600 rounded-[3rem] p-10 text-white relative overflow-hidden shadow-2xl shadow-blue-500/30 group hover:-translate-y-2 transition-all duration-500"
                         >
@@ -270,7 +319,7 @@ export default function DashboardClient({ isAdmin: serverIsAdmin }: DashboardCli
                         {/* Weekly Goal Status */}
                         <div className="bg-slate-950 rounded-[3.5rem] p-10 text-white relative overflow-hidden shadow-2xl shadow-blue-900/20">
                             <div className="absolute top-0 right-0 w-64 h-64 bg-blue-600/5 blur-[100px] rounded-full" />
-                            
+
                             <div className="relative space-y-6">
                                 <div>
                                     <h4 className="text-[10px] font-black text-blue-400 uppercase tracking-[0.5em] mb-4 italic">Material Execution</h4>
@@ -281,12 +330,12 @@ export default function DashboardClient({ isAdmin: serverIsAdmin }: DashboardCli
                                 </div>
 
                                 <div className="h-1.5 w-full bg-slate-900 rounded-full overflow-hidden">
-                                    <div 
-                                        className="h-full bg-blue-600 rounded-full transition-all duration-1000" 
-                                        style={{ width: `${Math.min(100, (stats?.thisWeekSales / 10000) * 100)}%` }} 
+                                    <div
+                                        className="h-full bg-blue-600 rounded-full transition-all duration-1000"
+                                        style={{ width: `${Math.min(100, (stats?.thisWeekSales / 10000) * 100)}%` }}
                                     />
                                 </div>
-                                
+
                                 <div className="pt-6 border-t border-white/5 space-y-4">
                                     <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-widest text-slate-500">
                                         <span>Flux Frequency</span>

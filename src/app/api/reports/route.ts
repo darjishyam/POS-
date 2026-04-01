@@ -53,6 +53,67 @@ export async function GET(req: NextRequest) {
             return NextResponse.json({ sales, purchases })
         }
 
+        if (type === 'cash-bank') {
+            const sevenDaysAgo = new Date()
+            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+
+            const orders = await prisma.order.findMany({
+                where: { createdAt: { gte: sevenDaysAgo }, status: { notIn: ['PENDING', 'DRAFT', 'QUOTATION'] } },
+                select: { totalAmount: true, paymentMethod: true, createdAt: true }
+            })
+
+            const purchases = await prisma.purchase.findMany({
+                where: { createdAt: { gte: sevenDaysAgo } },
+                select: { amountPaid: true, paymentMethod: true, createdAt: true }
+            })
+
+            const expensesData = await prisma.expense.findMany({
+                where: { createdAt: { gte: sevenDaysAgo } },
+                select: { amount: true, createdAt: true }
+            })
+
+            const dailyStats: Record<string, any> = {}
+
+            for (let i = 0; i < 7; i++) {
+                const date = new Date()
+                date.setDate(date.getDate() - i)
+                const dateStr = date.toISOString().split('T')[0]
+                dailyStats[dateStr] = { 
+                    date: dateStr, 
+                    cashIn: 0, 
+                    bankIn: 0, 
+                    cashOut: 0, 
+                    bankOut: 0 
+                }
+            }
+
+            orders.forEach((o: any) => {
+                const d = o.createdAt.toISOString().split('T')[0]
+                if (dailyStats[d]) {
+                    if (o.paymentMethod === 'CASH') dailyStats[d].cashIn += o.totalAmount
+                    else dailyStats[d].bankIn += o.totalAmount
+                }
+            })
+
+            purchases.forEach((p: any) => {
+                const d = p.createdAt.toISOString().split('T')[0]
+                if (dailyStats[d]) {
+                    if (p.paymentMethod === 'CASH') dailyStats[d].cashOut += p.amountPaid
+                    else dailyStats[d].bankOut += p.amountPaid
+                }
+            })
+
+            expensesData.forEach((e: any) => {
+                const d = e.createdAt.toISOString().split('T')[0]
+                if (dailyStats[d]) {
+                    dailyStats[d].cashOut += e.amount // Assume general expenses are cash for now
+                }
+            })
+
+            const chartData = Object.values(dailyStats).sort((a: any, b: any) => a.date.localeCompare(b.date))
+            return NextResponse.json(chartData)
+        }
+
         // Default: Profit & Loss (Sales vs Expenses)
         const sevenDaysAgo = new Date()
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)

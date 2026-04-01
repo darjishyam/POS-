@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { toast, Toaster } from 'react-hot-toast'
 import { 
@@ -74,6 +74,7 @@ export default function PurchasesClient() {
     const [submitting, setSubmitting] = useState(false)
     const [search, setSearch] = useState('')
     const [mounted, setMounted] = useState(false)
+    const urlInitialized = useRef(false)
     const searchParams = useSearchParams()
     const productIdFromUrl = searchParams.get('productId')
 
@@ -91,11 +92,12 @@ export default function PurchasesClient() {
     }, [])
 
     useEffect(() => {
-        if (productIdFromUrl && products.length > 0 && !isModalOpen && items[0]?.productId === '') {
+        if (productIdFromUrl && products.length > 0 && !isModalOpen && items[0]?.productId === '' && !urlInitialized.current) {
             const product = products.find(p => p.id === productIdFromUrl)
             if (product) {
                 setItems([{ productId: productIdFromUrl, quantity: 1, unitCost: 0, syncPrice: false, newPrice: 0 }])
                 setIsModalOpen(true)
+                urlInitialized.current = true
                 toast.success(`Replenishing ${product.name}`)
             }
         }

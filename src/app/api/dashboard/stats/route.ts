@@ -149,6 +149,8 @@ export async function GET(request: Request) {
         // 10. Financial Pillars (Mission Control Specific)
         let stockValue = 0
         let cashBalance = 0
+        let trueCashBalance = 0
+        let trueBankBalance = 0
         let thisWeekSales = 0
         let trueToCollect = 0
 
@@ -179,14 +181,37 @@ export async function GET(request: Request) {
             }, 0)
 
             // B. Bank & Cash Balance Calculation
-            // Cash In (All Sales) - Cash Out (All Purchase Payments + All Expenses)
-            const globalSalesSum = await (prisma as any).order.aggregate({ _sum: { totalAmount: true } })
-            const globalPurchasePaidSum = await (prisma as any).purchase.aggregate({ _sum: { amountPaid: true } })
-            const globalExpensesSum = await (prisma as any).expense.aggregate({ _sum: { amount: true } })
+            const liquidOrders = await (prisma as any).order.findMany({
+                where: { status: { notIn: ['PENDING', 'DRAFT', 'QUOTATION'] } },
+                select: { totalAmount: true, paymentMethod: true }
+            })
+            const liquidPurchases = await (prisma as any).purchase.findMany({
+                select: { amountPaid: true, paymentMethod: true }
+            })
+            const expensesList = await (prisma as any).expense.findMany({
+                select: { amount: true }
+            })
+
+            let pureCashSales = 0, pureBankSales = 0
+            liquidOrders.forEach((o: any) => {
+                if (o.paymentMethod === 'CASH') pureCashSales += o.totalAmount
+                else pureBankSales += o.totalAmount
+            })
+
+            let pureCashPurchases = 0, pureBankPurchases = 0
+            liquidPurchases.forEach((p: any) => {
+                if (p.paymentMethod === 'CASH') pureCashPurchases += (p.amountPaid || 0)
+                else pureBankPurchases += (p.amountPaid || 0)
+            })
             
-            cashBalance = (globalSalesSum._sum.totalAmount || 0) - 
-                          (globalPurchasePaidSum._sum.amountPaid || 0) - 
-                          (globalExpensesSum._sum.amount || 0)
+            let pureCashExpenses = 0
+            expensesList.forEach((e: any) => {
+                pureCashExpenses += e.amount
+            })
+
+            trueCashBalance = pureCashSales - pureCashPurchases - pureCashExpenses
+            trueBankBalance = pureBankSales - pureBankPurchases
+            cashBalance = trueCashBalance + trueBankBalance
 
             // C. This Week Sales
             const startOfWeek = new Date()
@@ -197,6 +222,16 @@ export async function GET(request: Request) {
             })
             thisWeekSales = weekSalesAgg._sum.totalAmount || 0
         }
+
+        // Calculate Collected Revenue (Paid Only)
+        const collectedAgg = await (prisma as any).order.aggregate({
+            where: { 
+                 createdAt: dateFilter,
+                 status: { notIn: ['PENDING', 'DRAFT', 'QUOTATION'] } 
+            },
+            _sum: { totalAmount: true }
+        });
+        const collectedRevenue = collectedAgg._sum.totalAmount || 0;
 
         return NextResponse.json({
             revenue: revenue,
@@ -215,9 +250,13 @@ export async function GET(request: Request) {
             netRevenue: revenue - expensesSum,
             // New Metrics
             toCollectProfit: trueToCollect, // Actual Pending Orders value, keeping key name for frontend compatibility
+            collectedRevenue: collectedRevenue,
             toPayDues: totalPurchaseDue,
+            paidOut: totalAmountPaidForPurchases,
             stockValue,
             cashBalance,
+            trueCashBalance,
+            trueBankBalance,
             thisWeekSales
         })
     } catch (error) {

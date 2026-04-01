@@ -108,6 +108,14 @@ export default function ReportsClient() {
             description: 'Velocity analysis for top-performing materials.' 
         },
         { 
+            id: 'cash-bank', 
+            name: 'Cash & Bank Audit', 
+            icon: Briefcase, 
+            color: 'text-emerald-600', 
+            bg: 'bg-emerald-50',
+            description: 'Separated tracking of cash vs digital inflow and outflow.' 
+        },
+        { 
             id: 'activity', 
             name: 'Core Activity Logs', 
             icon: Activity, 
@@ -201,6 +209,7 @@ export default function ReportsClient() {
 
         const isStock = reportType === 'stock'
         const isPurchaseSale = reportType === 'purchase-sale'
+        const isCashBank = reportType === 'cash-bank'
         
         let displayData = Array.isArray(salesData) ? salesData : []
         if (isStock && Array.isArray(salesData)) {
@@ -333,11 +342,30 @@ export default function ReportsClient() {
                                                                     <span className="uppercase tracking-tighter italic text-slate-400">Operational Inflow</span>
                                                                     <span className="text-rose-400 font-mono">- {settings.currencySymbol}{(day.expenses || 0).toLocaleString()}</span>
                                                                 </div>
-                                                                <div className="pt-2 border-t border-white/10 flex justify-between items-center gap-8 mt-2">
-                                                                    <span className="uppercase tracking-[0.2em] text-blue-400">Actual Net Yield</span>
-                                                                    <span className={`text-lg font-black italic tracking-tighter ${day.netProfit >= 0 ? 'text-blue-500' : 'text-rose-500'}`}>
-                                                                        {settings.currencySymbol}{day.netProfit.toLocaleString()}
-                                                                    </span>
+                                                                    <div className="pt-2 border-t border-white/10 flex justify-between items-center gap-8 mt-2">
+                                                                        <span className="uppercase tracking-[0.2em] text-blue-400">Actual Net Yield</span>
+                                                                        <span className={`text-lg font-black italic tracking-tighter ${day.netProfit >= 0 ? 'text-blue-500' : 'text-rose-500'}`}>
+                                                                            {settings.currencySymbol}{day.netProfit.toLocaleString()}
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                        ) : isCashBank ? (
+                                                            <div className="space-y-3">
+                                                                <div className="flex justify-between items-center gap-8">
+                                                                    <span className="uppercase tracking-tighter italic text-slate-400">Cash Inflow</span>
+                                                                    <span className="text-emerald-400 font-mono">{settings.currencySymbol}{(day.cashIn || 0).toLocaleString()}</span>
+                                                                </div>
+                                                                <div className="flex justify-between items-center gap-8">
+                                                                    <span className="uppercase tracking-tighter italic text-slate-400">Bank Inflow</span>
+                                                                    <span className="text-blue-400 font-mono">{settings.currencySymbol}{(day.bankIn || 0).toLocaleString()}</span>
+                                                                </div>
+                                                                <div className="flex justify-between items-center gap-8 mt-2 border-t border-white/10 pt-2">
+                                                                    <span className="uppercase tracking-tighter italic text-slate-400">Cash Outflow</span>
+                                                                    <span className="text-rose-400 font-mono">- {settings.currencySymbol}{(day.cashOut || 0).toLocaleString()}</span>
+                                                                </div>
+                                                                <div className="flex justify-between items-center gap-8">
+                                                                    <span className="uppercase tracking-tighter italic text-slate-400">Bank Outflow</span>
+                                                                    <span className="text-amber-400 font-mono">- {settings.currencySymbol}{(day.bankOut || 0).toLocaleString()}</span>
                                                                 </div>
                                                             </div>
                                                         ) : (
@@ -358,24 +386,35 @@ export default function ReportsClient() {
                                             return null
                                         }}
                                     />
-                                    <Bar 
-                                        dataKey={isStock || reportType === 'expenses' ? "value" : "sales"} 
-                                        radius={[8, 8, 0, 0]} 
-                                        barSize={isPurchaseSale ? 15 : 40}
-                                        name={isStock ? 'stock' : (reportType === 'expenses' ? 'expense' : 'sales')}
-                                    >
-                                        {displayData.map((entry: any, index: number) => (
-                                            <Cell key={`cell-${index}`} fill={reportType === 'expenses' ? '#f43f5e' : (isStock ? '#4f46e5' : '#2563eb')} />
-                                        ))}
-                                    </Bar>
-                                    {isPurchaseSale && (
-                                        <Bar 
-                                            dataKey="purchases" 
-                                            fill="#f59e0b" 
-                                            radius={[8, 8, 0, 0]} 
-                                            barSize={15}
-                                            name="purchases"
-                                        />
+                                    {isCashBank ? (
+                                        <>
+                                            <Bar dataKey="cashIn" fill="#059669" radius={[4, 4, 0, 0]} barSize={8} name="Cash In" />
+                                            <Bar dataKey="bankIn" fill="#2563eb" radius={[4, 4, 0, 0]} barSize={8} name="Bank In" />
+                                            <Bar dataKey="cashOut" fill="#f43f5e" radius={[4, 4, 0, 0]} barSize={8} name="Cash Out" />
+                                            <Bar dataKey="bankOut" fill="#f59e0b" radius={[4, 4, 0, 0]} barSize={8} name="Bank Out" />
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Bar 
+                                                dataKey={isStock || reportType === 'expenses' ? "value" : "sales"} 
+                                                radius={[8, 8, 0, 0]} 
+                                                barSize={isPurchaseSale ? 15 : 40}
+                                                name={isStock ? 'stock' : (reportType === 'expenses' ? 'expense' : 'sales')}
+                                            >
+                                                {displayData.map((entry: any, index: number) => (
+                                                    <Cell key={`cell-${index}`} fill={reportType === 'expenses' ? '#f43f5e' : (isStock ? '#4f46e5' : '#2563eb')} />
+                                                ))}
+                                            </Bar>
+                                            {isPurchaseSale && (
+                                                <Bar 
+                                                    dataKey="purchases" 
+                                                    fill="#f59e0b" 
+                                                    radius={[8, 8, 0, 0]} 
+                                                    barSize={15}
+                                                    name="purchases"
+                                                />
+                                            )}
+                                        </>
                                     )}
                                 </BarChart>
                             </ResponsiveContainer>
@@ -390,19 +429,25 @@ export default function ReportsClient() {
                             </h3>
                             <div className="space-y-6">
                                 <div className="flex justify-between items-center bg-white/5 p-5 rounded-2xl border border-white/5">
-                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic">{isStock ? 'Total Assets' : 'System Yield'}</span>
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic">{isStock ? 'Total Assets' : (isCashBank ? 'Net Cash' : 'System Yield')}</span>
                                     <span className="text-2xl font-black italic tracking-tighter text-blue-400">
                                         {isStock 
                                             ? displayData.reduce((s: number, d: any) => s + d.value, 0)
-                                            : `${settings.currencySymbol}${displayData.reduce((s: number, d: any) => s + (d.sales || 0), 0).toLocaleString()}`}
+                                            : (isCashBank
+                                                ? `${settings.currencySymbol}${displayData.reduce((s: number, d: any) => s + (d.cashIn - d.cashOut), 0).toLocaleString()}`
+                                                : `${settings.currencySymbol}${displayData.reduce((s: number, d: any) => s + (d.sales || 0), 0).toLocaleString()}`
+                                            )}
                                     </span>
                                 </div>
                                 <div className="flex justify-between items-center bg-white/5 p-5 rounded-2xl border border-white/5">
-                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic">{isStock ? 'Inventory Value' : 'Expansion Rate'}</span>
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic">{isStock ? 'Inventory Value' : (isCashBank ? 'Net Bank' : 'Expansion Rate')}</span>
                                     <span className="text-2xl font-black italic tracking-tighter text-blue-500">
                                         {isStock 
                                             ? `${settings.currencySymbol}${displayData.reduce((s: number, d: any) => s + (d.secondaryValue || 0), 0).toLocaleString()}`
-                                            : '+12.4%'}
+                                            : (isCashBank
+                                                ? `${settings.currencySymbol}${displayData.reduce((s: number, d: any) => s + (d.bankIn - d.bankOut), 0).toLocaleString()}`
+                                                : '+12.4%'
+                                            )}
                                     </span>
                                 </div>
                             </div>
@@ -431,17 +476,23 @@ export default function ReportsClient() {
                         </thead>
                         <tbody className="divide-y divide-slate-50">
                             {displayData.map((day: any, idx: number) => (
+                                
                                 <tr key={idx} className="group hover:bg-slate-50/50 transition-colors">
                                     <td className="px-10 py-8 text-sm font-black text-slate-950 italic tracking-tight uppercase">
                                         {isStock || reportType === 'expenses' ? day.name : (mounted ? new Date(day.date).toLocaleDateString(undefined, { dateStyle: 'long' }) : '...')}
                                     </td>
                                     <td className="px-10 py-8 text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
                                         <div className="w-1.5 h-1.5 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(37,99,235,0.5)]" />
-                                        {isStock ? day.category : 'Verified Intelligence'}
+                                        {isStock ? day.category : (isCashBank ? 'Cash & Digital Activity' : 'Verified Intelligence')}
                                     </td>
                                     <td className="px-10 py-8 text-right">
                                         <span className="text-xl font-black text-slate-950 tracking-tighter italic">
-                                            {isStock ? (day.value || 0).toLocaleString() : `${settings.currencySymbol}${(day.value || day.sales || 0).toLocaleString()}`}
+                                            {isStock 
+                                                ? (day.value || 0).toLocaleString() 
+                                                : isCashBank
+                                                    ? `${settings.currencySymbol}${((day.cashIn + day.bankIn) - (day.cashOut + day.bankOut) || 0).toLocaleString()}`
+                                                    : `${settings.currencySymbol}${(day.value || day.sales || 0).toLocaleString()}`
+                                            }
                                         </span>
                                     </td>
                                 </tr>

@@ -46,19 +46,26 @@ export default function ProductsPage() {
     useEffect(() => {
         fetchProducts()
         fetchCategories()
+
+        // Magic Sync Polling (Silent Background Refresh)
+        const syncInterval = setInterval(() => {
+            fetchProducts(true)
+        }, 3500)
+
+        return () => clearInterval(syncInterval)
     }, [])
 
-    const fetchProducts = async () => {
-        setIsLoading(true)
+    const fetchProducts = async (isBackground = false) => {
+        if (!isBackground) setIsLoading(true)
         try {
             const res = await fetch('/api/products')
             const data = await res.json()
             setProducts(Array.isArray(data) ? data : [])
         } catch (error) {
             console.error('Error fetching products:', error)
-            toast.error('Failed to synchronize with global registry', { duration: 4000 })
+            if (!isBackground) toast.error('Failed to synchronize with global registry', { duration: 4000 })
         } finally {
-            setIsLoading(false)
+            if (!isBackground) setIsLoading(false)
         }
     }
 
@@ -134,12 +141,7 @@ export default function ProductsPage() {
             })
             return
         }
-        addToCart(product)
-        toast.success(`${product.name} synced to local cache`, {
-            position: 'top-center',
-            duration: 3000,
-            style: { background: '#10b981', color: '#fff', fontWeight: '900', fontSize: '12px' }
-        })
+        addToCart(product, `${product.name} synced to local cache`)
     }
 
     const handleViewSpecs = (brochureUrl?: string) => {
@@ -154,8 +156,10 @@ export default function ProductsPage() {
     }
 
     const filteredProducts = products.filter(p => 
-        p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p.sku.toLowerCase().includes(searchQuery.toLowerCase())
+        p.stock > 0 && (
+            p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            p.sku.toLowerCase().includes(searchQuery.toLowerCase())
+        )
     )
 
     if (authLoading) return null

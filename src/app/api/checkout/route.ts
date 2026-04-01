@@ -78,6 +78,22 @@ export async function POST(request: Request) {
                 if (userExists) verifiedUserId = userId;
             }
 
+            // 0.5 Check Global Stock Availability First
+            if (status !== 'DRAFT' && status !== 'QUOTATION') {
+                const productIds = cartItems.map((i: any) => i.id);
+                const dbProducts = await tx.product.findMany({
+                    where: { id: { in: productIds } }
+                });
+
+                for (const item of cartItems) {
+                    const dbProduct = dbProducts.find((p: any) => p.id === item.id);
+                    if (!dbProduct) throw new Error(`Asset ${item.id} not found.`);
+                    if (dbProduct.stock < item.quantity) {
+                        throw new Error(`Insufficient stock for ${dbProduct.name}. Only ${dbProduct.stock} left.`);
+                    }
+                }
+            }
+
             // 1. Create the Order
             const newOrder = await tx.order.create({
                 data: {
@@ -102,6 +118,15 @@ export async function POST(request: Request) {
 
             // 2. Decrement Stock ONLY if not a DRAFT or QUOTATION
             if (status !== 'DRAFT' && status !== 'QUOTATION') {
+                // Decrement Global Stock
+                for (const item of cartItems) {
+                    await tx.product.update({
+                        where: { id: item.id },
+                        data: { stock: { decrement: item.quantity } }
+                    });
+                }
+
+                // Decrement Default Location Stock
                 const defaultLocation = await tx.location.findFirst({
                     where: { type: 'STORE' }
                 })
@@ -147,8 +172,8 @@ export async function POST(request: Request) {
         })
 
         return NextResponse.json(order)
-    } catch (error) {
+    } catch (error: any) {
         console.error('Checkout Error:', error)
-        return NextResponse.json({ error: 'Checkout synchronization failure' }, { status: 500 })
+        return NextResponse.json({ error: error?.message || 'Checkout synchronization failure' }, { status: 500 })
     }
 }

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { toast } from 'react-hot-toast'
 import { useSettings } from '@/context/SettingsContext'
 
 export default function POSPage() {
@@ -23,7 +24,7 @@ export default function POSPage() {
     const { settings } = useSettings()
 
     useEffect(() => {
-        // Fetch everything in parallel
+        // Fetch everything in parallel initial load
         Promise.all([
             fetch('/api/products').then(res => res.json()),
             fetch('/api/categories').then(res => res.json()),
@@ -36,6 +37,20 @@ export default function POSPage() {
             setLocations(locs)
             if (locs.length > 0) setSelectedLocationId(locs[0].id)
         })
+
+        // Magic Sync Polling: Silently update Product Stock levels in the background
+        const productSyncInterval = setInterval(() => {
+            fetch('/api/products')
+                .then(res => res.json())
+                .then(newProducts => {
+                    if (Array.isArray(newProducts)) {
+                        setProducts(newProducts)
+                    }
+                })
+                .catch(err => console.error('POS Sync Error:', err))
+        }, 3500)
+
+        return () => clearInterval(productSyncInterval)
     }, [])
 
     useEffect(() => {
@@ -56,6 +71,8 @@ export default function POSPage() {
     }, [selectedCustomerId, cart, customers, settings.taxRate])
 
     const filteredProducts = products.filter(p => {
+        if (p.stock <= 0) return false;
+        
         const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase()) ||
             p.sku.toLowerCase().includes(search.toLowerCase())
         const matchesCategory = !selectedCategoryId || p.categoryId === selectedCategoryId
@@ -63,16 +80,35 @@ export default function POSPage() {
     })
 
     const addToCart = (product: any) => {
-        if (product.stock <= 0) return alert('No inventory available!')
+        if (product.stock <= 0) {
+            toast.error('No inventory available!', { id: 'cart-operation-status', duration: 3000, style: { background: '#ef4444', color: '#fff', fontSize: '12px', fontWeight: 'bold' } })
+            return
+        }
+
+        const existing = cart.find(item => item.id === product.id)
+        if (existing && existing.quantity >= product.stock) {
+            toast.error(`Maximum stock reached! Only ${product.stock} available.`, { 
+                id: 'cart-operation-status', 
+                duration: 3000, 
+                style: { background: '#ef4444', color: '#fff', fontSize: '12px', fontWeight: 'bold' } 
+            })
+            return
+        }
 
         setCart(prev => {
-            const existing = prev.find(item => item.id === product.id)
-            if (existing) {
+            const innerExisting = prev.find(item => item.id === product.id)
+            if (innerExisting) {
                 return prev.map(item =>
                     item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
                 )
             }
             return [...prev, { ...product, quantity: 1 }]
+        })
+        
+        toast.success(`${product.name} added to cart`, {
+            id: 'cart-operation-status',
+            duration: 2000,
+            style: { background: '#10b981', color: '#fff', fontWeight: '900', fontSize: '12px' }
         })
     }
 
