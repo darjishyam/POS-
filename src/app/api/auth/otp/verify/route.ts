@@ -7,56 +7,50 @@ export async function POST(request: Request) {
     const { email, code } = await request.json();
 
     if (!email || !code) {
-      return NextResponse.json({ error: 'Identity and token required' }, { status: 400 });
+      return NextResponse.json({ error: 'Identity and Code required' }, { status: 400 });
     }
 
-    // 1. Verify token in database
+    // 1. Check OTP in Prisma
     const otpRecord = await prisma.otpCode.findUnique({
       where: { email },
     });
 
     if (!otpRecord || otpRecord.code !== code) {
-      return NextResponse.json({ error: 'Invalid security token' }, { status: 401 });
+      return NextResponse.json({ error: 'Invalid verification signature' }, { status: 400 });
     }
 
-    // 2. Check expiry
     if (new Date() > otpRecord.expiresAt) {
-      return NextResponse.json({ error: 'Security token expired' }, { status: 401 });
+      return NextResponse.json({ error: 'Verification window expired' }, { status: 400 });
     }
 
-    // 3. Update Database Status
-    // We attempt to find/create the user record to link verification
-    await prisma.user.upsert({
-      where: { email },
-      update: { isVerified: true },
-      create: { 
-        email, 
-        isVerified: true,
-        password: 'LINKED_TO_FIREBASE', // Placeholder
-        name: email.split('@')[0],
-      },
-    });
-
-    // 4. Update Firebase Custom Claims
-    // Find the user by email in Firebase
-    try {
-      const firebaseUser = await adminAuth.getUserByEmail(email);
-      await adminAuth.setCustomUserClaims(firebaseUser.uid, {
-        verified: true
-      });
-      console.log(`✅ Security claims synchronized for ${email}`);
-    } catch (firebaseError) {
-      console.warn('Firebase user sync failed (normal during manual DB edits):', firebaseError);
-    }
-
-    // 5. Cleanup the token
+    // 2. Clear the OTP record now that it's used
     await prisma.otpCode.delete({
       where: { email },
     });
 
-    return NextResponse.json({ success: true, message: 'Identity authenticated' });
-  } catch (error) {
-    console.error('OTP Verification Error:', error);
-    return NextResponse.json({ error: 'Internal security authentication failure' }, { status: 500 });
+    // 3. Mark User as verified in Prisma
+    const updatedUser = await prisma.user.update({
+      where: { email },
+      data: { isVerified: true },
+    });
+
+    // 4. Mark User as verified in Firebase using Admin SDK
+    if (adminAuth) {
+      try {
+        const firebaseUser = await adminAuth.getUserByEmail(email);
+        await adminAuth.updateUser(firebaseUser.uid, {
+          emailVerified: true,
+        });
+        console.log(`✅ Firebase User ${email} marked as emailVerified`);
+      } catch (fbError) {
+        console.error('⚠️ Firebase Admin update failed:', fbError);
+        // We don't fail the whole request because Prisma is already updated
+      }
+    }
+
+    return NextResponse.json({ message: 'Identity parameters synchronized. Access granted.' });
+  } catch (error: any) {
+    console.error('OTP Verify Error:', error);
+    return NextResponse.json({ error: error.message || 'Verification protocol failed' }, { status: 500 });
   }
 }

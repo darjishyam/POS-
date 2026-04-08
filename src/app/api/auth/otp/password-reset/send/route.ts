@@ -14,19 +14,20 @@ export async function POST(request: Request) {
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes from now
 
-    // Save or update OTP in the database
+    // Store OTP keyed by email (same table used by other OTP flows)
     await prisma.otpCode.upsert({
       where: { email },
       update: { code: otp, expiresAt },
       create: { email, code: otp, expiresAt },
     });
 
-    // Send email via SMTP
+    // Send OTP via your existing SMTP transport
     await sendOTPEmail(email, otp);
 
     return NextResponse.json({ message: 'Verification code dispatched to your uplink' });
   } catch (error: any) {
-    console.error('OTP Send Error:', error);
+    console.error('Password Reset OTP Send Error:', error);
     return NextResponse.json({ error: error.message || 'Verification protocol failed' }, { status: 500 });
   }
 }
+

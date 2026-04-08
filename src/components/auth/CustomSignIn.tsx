@@ -1,10 +1,9 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   signInWithEmailAndPassword,
-  signInWithPopup,
-  sendPasswordResetEmail 
+  signInWithPopup
 } from 'firebase/auth';
 import { auth, googleProvider } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
@@ -13,8 +12,7 @@ import {
   Lock, 
   ArrowRight,
   Loader2,
-  ShieldCheck,
-  Globe
+  RefreshCw
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -23,7 +21,42 @@ const CustomSignIn = () => {
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [resetMode, setResetMode] = useState(false);
+    const [resetStep, setResetStep] = useState<'request' | 'verify'>('request');
+    const [otp, setOtp] = useState('');
+    const [resending, setResending] = useState(false);
+    const [resendTimer, setResendTimer] = useState(0);
     const router = useRouter();
+
+    useEffect(() => {
+        if (resendTimer > 0) {
+            const timer = setTimeout(() => setResendTimer(resendTimer - 1), 1000);
+            return () => clearTimeout(timer);
+        }
+    }, [resendTimer]);
+
+    const handleResendOtp = async () => {
+        if (resendTimer > 0 || resending) return;
+        
+        setResending(true);
+        try {
+            const res = await fetch('/api/auth/otp/password-reset/send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email }),
+            });
+            
+            if (res.ok) {
+                setResendTimer(30);
+                toast.success("New recovery code dispatched");
+            } else {
+                toast.error("Resend failed. Try again.");
+            }
+        } catch (err) {
+            toast.error("Network error. Try again.");
+        } finally {
+            setResending(false);
+        }
+    };
 
     const handleSocialSignIn = async (strategy: string) => {
         if (strategy !== 'oauth_google') return;
@@ -41,14 +74,20 @@ const CustomSignIn = () => {
             });
 
             toast.success("Security Handshake Complete.");
-            if (result.user.email === "professorshyam123@gmail.com") {
+            
+            // Dynamic Terminal Redirection
+            const tokenResult = await result.user.getIdTokenResult();
+            const role = (tokenResult.claims.role as string)?.toLowerCase();
+            
+            if (role === "admin") {
                 router.push('/dashboard');
             } else {
                 router.push('/');
             }
-        } catch (err: any) {
+        } catch (err) {
             console.error("Social Sign-In Error", err);
-            toast.error(err.message || "Authentication Failed");
+            const message = err instanceof Error ? err.message : undefined;
+            toast.error(message || "Authentication Failed");
         } finally {
             setLoading(false);
         }
@@ -70,20 +109,26 @@ const CustomSignIn = () => {
             });
 
             toast.success("Uplink Established.");
-            if (email === "professorshyam123@gmail.com") {
+            
+            // Dynamic Terminal Redirection
+            const tokenResult = await result.user.getIdTokenResult();
+            const role = (tokenResult.claims.role as string)?.toLowerCase();
+            
+            if (role === "admin") {
                 router.push('/dashboard');
             } else {
                 router.push('/');
             }
-        } catch (err: any) {
+        } catch (err) {
             console.error("Sign-In Error", err);
-            toast.error(err.message || "Credentials Denied");
+            const message = err instanceof Error ? err.message : undefined;
+            toast.error(message || "Credentials Denied");
         } finally {
             setLoading(false);
         }
     };
 
-    const handleResetPassword = async (e: React.FormEvent) => {
+    const handleSendOtp = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!email) {
             toast.error("Uplink address required for recovery");
@@ -92,15 +137,75 @@ const CustomSignIn = () => {
 
         setLoading(true);
         try {
-            await sendPasswordResetEmail(auth, email);
-            toast.success("Recovery Link Dispatched. Check your uplink.");
-            setResetMode(false);
-        } catch (err: any) {
-            console.error("Reset Password Error", err);
-            toast.error(err.message || "Recovery Protocol Failed");
+            const res = await fetch('/api/auth/otp/password-reset/send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email }),
+            });
+
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                toast.error(data.error || 'Failed to send OTP');
+                return;
+            }
+
+            toast.success("Recovery OTP Dispatched. Enter the code to reset.");
+            setResetStep('verify');
+            setOtp('');
+        } catch (err) {
+            console.error("Send OTP Error", err);
+            const message = err instanceof Error ? err.message : undefined;
+            toast.error(message || "OTP send failed");
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleResetWithOtp = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!email) {
+            toast.error("Uplink address required for recovery");
+            return;
+        }
+        if (otp.length !== 6) {
+            toast.error("Enter the 6-digit OTP code");
+            return;
+        }
+        if (!password) {
+            toast.error("New password is required");
+            return;
+        }
+
+        setLoading(true);
+        try {
+            const res = await fetch('/api/auth/otp/password-reset/verify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, code: otp, newPassword: password }),
+            });
+
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                toast.error(data.error || 'Password reset failed');
+                return;
+            }
+
+            toast.success("Password updated. You can now log in.");
+            setResetMode(false);
+            setResetStep('request');
+            setOtp('');
+        } catch (err) {
+            console.error("Reset With OTP Error", err);
+            const message = err instanceof Error ? err.message : undefined;
+            toast.error(message || "Password reset failed");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleOtpFlowSubmit = (e: React.FormEvent) => {
+        if (resetStep === 'request') return handleSendOtp(e);
+        return handleResetWithOtp(e);
     };
 
     if (loading && !email) {
@@ -146,7 +251,7 @@ const CustomSignIn = () => {
                 </div>
             </div>
 
-            <form onSubmit={resetMode ? handleResetPassword : handleSubmit} className="space-y-6">
+            <form onSubmit={resetMode ? handleOtpFlowSubmit : handleSubmit} className="space-y-6">
                 <div className="grid grid-cols-1 gap-6">
                     {/* Email */}
                     <div className="space-y-2 group">
@@ -164,12 +269,23 @@ const CustomSignIn = () => {
                         </div>
                     </div>
 
-                    {/* Password */}
+                    {/* Login password */}
                     {!resetMode && (
                         <div className="space-y-2 group animate-in fade-in slide-in-from-top-2 duration-300">
                             <div className="flex justify-between items-center px-2">
                                 <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest group-focus-within:text-slate-900 transition-colors duration-300">Secure Key-Phrase</label>
-                                <button type="button" onClick={() => setResetMode(true)} className="text-[9px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-900 transition-colors italic">Lost Key?</button>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setResetMode(true);
+                                        setResetStep('request');
+                                        setOtp('');
+                                        setPassword('');
+                                    }}
+                                    className="text-[9px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-900 transition-colors italic"
+                                >
+                                    Lost Key?
+                                </button>
                             </div>
                             <div className="relative group/input">
                                 <input
@@ -184,6 +300,60 @@ const CustomSignIn = () => {
                             </div>
                         </div>
                     )}
+
+                    {/* Reset password OTP + New password */}
+                    {resetMode && resetStep === 'verify' && (
+                        <>
+                            <div className="space-y-2 group animate-in fade-in slide-in-from-top-2 duration-300">
+                                <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest group-focus-within:text-slate-900 transition-colors duration-300">Secure Key-Phrase Code</label>
+                                <input
+                                    required
+                                    maxLength={6}
+                                    type="text"
+                                    placeholder="000000"
+                                    className="w-full bg-slate-100/50 border-2 border-slate-100 focus:border-slate-900 rounded-2xl p-5 text-[12px] font-bold text-slate-900 focus:bg-white transition-all duration-300 outline-none placeholder:text-slate-400 shadow-sm tracking-[0.4em] text-center"
+                                    value={otp}
+                                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                                />
+                            </div>
+
+                            <div className="space-y-2 group animate-in fade-in slide-in-from-top-2 duration-300">
+                                <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest group-focus-within:text-slate-900 transition-colors duration-300">New Password</label>
+                                <div className="relative group/input">
+                                    <input
+                                        required
+                                        type="password"
+                                        placeholder="••••••••••••"
+                                        className="w-full bg-slate-100/50 border-2 border-slate-100 focus:border-slate-900 rounded-2xl p-5 pl-12 text-[12px] font-bold text-slate-900 focus:bg-white transition-all duration-300 outline-none placeholder:text-slate-400 shadow-sm"
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                    />
+                                    <Lock className="w-4 h-4 absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-slate-900 group-focus-within:scale-110 transition-all duration-300" />
+                                </div>
+                            </div>
+
+                            <button 
+                                type="button"
+                                onClick={handleResendOtp}
+                                disabled={resendTimer > 0 || resending}
+                                className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-900 transition-colors disabled:opacity-50"
+                            >
+                                {resending ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : resendTimer > 0 ? (
+                                    <>
+                                        <RefreshCw className="w-4 h-4" />
+                                        Resend in {resendTimer}s
+                                    </>
+                                ) : (
+                                    <>
+                                        <RefreshCw className="w-4 h-4" />
+                                        Resend Code
+                                    </>
+                                )}
+                            </button>
+                        </>
+                    )}
                 </div>
 
                 <div className="space-y-4">
@@ -196,7 +366,13 @@ const CustomSignIn = () => {
                             <Loader2 className="w-5 h-5 animate-spin" />
                         ) : (
                             <>
-                                <span>{resetMode ? "Initialize Recovery" : "System Authentication"}</span>
+                                <span>
+                                    {resetMode
+                                        ? resetStep === 'request'
+                                            ? 'Send OTP'
+                                            : 'Reset Password'
+                                        : 'System Authentication'}
+                                </span>
                                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                             </>
                         )}
@@ -205,7 +381,12 @@ const CustomSignIn = () => {
                     {resetMode && (
                         <button 
                             type="button" 
-                            onClick={() => setResetMode(false)}
+                            onClick={() => {
+                                setResetMode(false);
+                                setResetStep('request');
+                                setOtp('');
+                                setPassword('');
+                            }}
                             className="w-full text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-900 transition-colors py-2"
                         >
                             Return to Authentication

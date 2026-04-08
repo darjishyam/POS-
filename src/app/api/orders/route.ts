@@ -10,7 +10,8 @@ export async function GET() {
                     include: {
                         product: true
                     }
-                }
+                },
+                payments: true
             },
             orderBy: {
                 createdAt: 'desc'
@@ -40,7 +41,8 @@ export async function POST(request: Request) {
         }
 
         const body = await request.json()
-        const { items, taxAmount, discountAmount, paymentMethod, locationId } = body
+        const { items, taxAmount, discountAmount, payments, locationId } = body
+        let { paymentMethod } = body
         let { customerId } = body
 
         // If no customerId is provided but a user is logged in, try to link them
@@ -95,10 +97,21 @@ export async function POST(request: Request) {
                     totalAmount: finalTotal,
                     taxAmount: taxAmount || 0,
                     discountAmount: discountAmount || 0,
-                    paymentMethod: paymentMethod || 'CASH',
-                    customerId: customerId,
+                    paymentMethod: paymentMethod || (payments && payments.length > 0 ? (payments.length > 1 ? 'SPLIT' : payments[0].method) : 'CASH'),
+                    customer: customerId ? { connect: { id: customerId } } : undefined,
                     items: {
                         create: orderItemsData
+                    },
+                    payments: {
+                        create: payments && payments.length > 0
+                            ? payments.map((p: any) => ({
+                                amount: p.amount,
+                                method: p.method
+                            }))
+                            : [{
+                                amount: finalTotal,
+                                method: paymentMethod || 'CASH'
+                            }]
                     }
                 }
             })

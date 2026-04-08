@@ -8,7 +8,13 @@ const PUBLIC_ROUTES = [
   '/denied', 
   '/checkout', 
   '/api/checkout',
-  '/api/auth/session'
+  '/api/auth/session',
+  // Auth endpoints that must work without an existing session cookie
+  '/api/auth/signup',
+  '/api/auth/otp/send',
+  '/api/auth/otp/verify',
+  '/api/auth/otp/password-reset/send',
+  '/api/auth/otp/password-reset/verify',
 ];
 
 export function proxy(request: NextRequest) {

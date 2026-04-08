@@ -2,12 +2,29 @@ import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { adminAuth } from '@/lib/firebase-admin';
 import { cookies } from 'next/headers';
-
+import { sendLowStockAlert } from '@/lib/nodemailer';
 export async function POST(request: Request) {
     try {
         const body = await request.json();
         const cartItems = body.cartItems || body.items;
-        const { totalAmount, taxAmount, discountAmount, paymentMethod, customerInfo, upiId, agentId, customerId, status } = body;
+        const { 
+            totalAmount, 
+            taxAmount, 
+            discountAmount, 
+            paymentMethod, 
+            customerInfo, 
+            upiId, 
+            agentId, 
+            customerId, 
+            status, 
+            payments,
+            isDelivery,
+            shippingName,
+            shippingAddress,
+            shippingCity,
+            shippingPhone,
+            shippingCost
+        } = body;
 
         if (!cartItems || !Array.isArray(cartItems)) {
             return NextResponse.json({ error: 'Cart items missing or invalid' }, { status: 400 });
@@ -102,16 +119,33 @@ export async function POST(request: Request) {
                     discountAmount: discountAmount || 0,
                     paymentMethod: paymentMethod || 'CASH',
                     upiId: upiId || null,
-                    agentId: agentId || null,
                     status: status || 'COMPLETED',
-                    userId: verifiedUserId,
-                    customerId: finalCustomerId,
+                    user: verifiedUserId ? { connect: { id: verifiedUserId } } : undefined,
+                    customer: finalCustomerId ? { connect: { id: finalCustomerId } } : undefined,
+                    agent: agentId ? { connect: { id: agentId } } : undefined,
+                    isDelivery: isDelivery || false,
+                    shippingName: shippingName || null,
+                    shippingAddress: shippingAddress || null,
+                    shippingCity: shippingCity || null,
+                    shippingPhone: shippingPhone || null,
+                    shippingCost: shippingCost || 0,
                     items: {
                         create: cartItems.map((item: any) => ({
                             productId: item.id,
                             quantity: item.quantity,
                             price: item.price
                         }))
+                    },
+                    payments: {
+                        create: payments && payments.length > 0 
+                            ? payments.map((p: any) => ({
+                                amount: p.amount,
+                                method: p.method
+                            }))
+                            : [{
+                                amount: totalAmount,
+                                method: paymentMethod || 'CASH'
+                            }]
                     }
                 }
             })
@@ -167,9 +201,39 @@ export async function POST(request: Request) {
                         product: true
                     }
                 },
-                customer: true
+                customer: true,
+                payments: true
             }
         })
+
+        // 4. Low Stock Alerts (Role-Based)
+        if (order && status !== 'DRAFT' && status !== 'QUOTATION') {
+            try {
+                // Fetch all admins
+                const admins = await prisma.user.findMany({
+                    where: { role: 'ADMIN' },
+                    select: { email: true }
+                });
+                const adminEmails = admins.map((a: any) => a.email).filter(Boolean);
+
+                if (adminEmails.length > 0) {
+                    for (const item of order.items) {
+                        const product = item.product;
+                        // Trigger alert if core stock management is on and we hit the threshold
+                        if (product.manageStock && product.stock <= product.alertQuantity) {
+                            await sendLowStockAlert(adminEmails, {
+                                name: product.name,
+                                sku: product.sku,
+                                stock: product.stock,
+                                alertQuantity: product.alertQuantity
+                            });
+                        }
+                    }
+                }
+            } catch (alertError) {
+                console.error('Low Stock Alert failed (non-fatal):', alertError);
+            }
+        }
 
         return NextResponse.json(order)
     } catch (error: any) {

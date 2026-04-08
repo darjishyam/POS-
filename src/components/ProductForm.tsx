@@ -23,13 +23,15 @@ interface ProductFormProps {
     initialData?: any
     onSave: (data: any) => void
     onCancel: () => void
+    isModal?: boolean
 }
 
-export default function ProductForm({ initialData, onSave, onCancel }: ProductFormProps) {
+export default function ProductForm({ initialData, onSave, onCancel, isModal = false }: ProductFormProps) {
     const [categories, setCategories] = useState<any[]>([])
     const [brands, setBrands] = useState<any[]>([])
     const [units, setUnits] = useState<any[]>([])
     const [suppliers, setSuppliers] = useState<any[]>([])
+    const [taxes, setTaxes] = useState<any[]>([])
     const fileInputRef = useRef<HTMLInputElement>(null)
     const docInputRef = useRef<HTMLInputElement>(null)
     const [isUploading, setIsUploading] = useState(false)
@@ -50,34 +52,66 @@ export default function ProductForm({ initialData, onSave, onCancel }: ProductFo
         image: initialData?.image || '',
         brochureUrl: initialData?.brochureUrl || '',
         supplierId: initialData?.supplierId || '',
-        purchaseCost: initialData?.purchaseCost || ''
+        purchaseCost: initialData?.purchaseCost || '',
+        taxId: initialData?.taxId || '',
+        taxType: initialData?.taxType || 'EXCLUSIVE',
+        purchasePriceExcTax: initialData?.purchasePriceExcTax || '',
+        purchasePriceIncTax: initialData?.purchasePriceIncTax || '',
+        margin: initialData?.margin || '25'
     })
 
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [catRes, brandRes, unitRes, suppRes] = await Promise.all([
+                const [catRes, brandRes, unitRes, suppRes, taxRes] = await Promise.all([
                     fetch('/api/categories'),
                     fetch('/api/brands'),
                     fetch('/api/units'),
-                    fetch('/api/suppliers')
+                    fetch('/api/suppliers'),
+                    fetch('/api/taxes')
                 ])
-                const [catData, brandData, unitData, suppData] = await Promise.all([
+                const [catData, brandData, unitData, suppData, taxData] = await Promise.all([
                     catRes.json(),
                     brandRes.json(),
                     unitRes.json(),
-                    suppRes.json()
+                    suppRes.json(),
+                    taxRes.json()
                 ])
                 setCategories(Array.isArray(catData) ? catData : [])
                 setBrands(Array.isArray(brandData) ? brandData : [])
                 setUnits(Array.isArray(unitData) ? unitData : [])
                 setSuppliers(Array.isArray(suppData) ? suppData : [])
+                setTaxes(Array.isArray(taxData) ? taxData : [])
             } catch (error) {
                 console.error('Fetch Error:', error)
             }
         }
         fetchData()
     }, [])
+
+    useEffect(() => {
+        const taxRate = taxes.find(t => t.id === formData.taxId)?.rate || 0
+        const pExc = parseFloat(formData.purchasePriceExcTax.toString()) || 0
+        const marginPerc = parseFloat(formData.margin.toString()) || 25
+        
+        const pInc = pExc * (1 + taxRate / 100)
+        const sExc = pExc * (1 + marginPerc / 100)
+        // const sInc = sExc * (1 + taxRate / 100)
+        
+        // Only update if values actually changed to avoid infinite loops
+        if (
+            Math.abs(pInc - (parseFloat(formData.purchasePriceIncTax.toString()) || 0)) > 0.01 ||
+            Math.abs(sExc - (parseFloat(formData.price.toString()) || 0)) > 0.01 ||
+            Math.abs(pExc - (parseFloat(formData.purchaseCost.toString()) || 0)) > 0.01
+        ) {
+            setFormData(prev => ({
+                ...prev,
+                purchasePriceIncTax: pInc.toFixed(2),
+                price: sExc.toFixed(2),
+                purchaseCost: pExc.toFixed(2)
+            }))
+        }
+    }, [formData.purchasePriceExcTax, formData.margin, formData.taxId, taxes])
 
     const handleLocalUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
@@ -178,32 +212,53 @@ export default function ProductForm({ initialData, onSave, onCancel }: ProductFo
             stock: parseInt(formData.stock.toString()),
             alertQuantity: parseInt(formData.alertQuantity.toString()),
             purchaseCost: formData.purchaseCost ? parseFloat(formData.purchaseCost.toString()) : undefined,
+            purchasePriceExcTax: parseFloat(formData.purchasePriceExcTax.toString()) || 0,
+            purchasePriceIncTax: parseFloat(formData.purchasePriceIncTax.toString()) || 0,
+            margin: parseFloat(formData.margin.toString()) || 25,
             supplierId: formData.supplierId || undefined
         })
     }
 
     return (
-        <form onSubmit={handleSubmit} className="p-8 md:p-12 font-sans selection:bg-emerald-100 max-w-7xl mx-auto space-y-12">
+        <div className={`${isModal ? 'p-2' : 'min-h-screen p-8 md:p-12'} font-sans selection:bg-emerald-100 bg-transparent custom-scrollbar overflow-y-auto`}>
+            {!isModal && <Toaster position="top-right" />}
             
-            <div className="flex items-center justify-between border-b border-gray-100 pb-8">
-                <div className="space-y-2">
-                    <h2 className="text-4xl font-black text-gray-950 tracking-tighter italic">
-                        {initialData ? 'Update' : 'Add new'} <span className="text-emerald-600 NOT-italic uppercase">Product</span>
-                    </h2>
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Global Asset Ledger Protocol v2.0</p>
-                </div>
-                <button 
-                    type="button" 
-                    onClick={onCancel}
-                    className="p-4 rounded-2xl bg-slate-50 text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition-all"
-                >
-                    <X className="w-6 h-6" />
-                </button>
-            </div>
+            <form onSubmit={handleSubmit} className={`${isModal ? 'p-4' : 'max-w-7xl mx-auto'} space-y-12 pb-20`}>
+                {!isModal && (
+                    <div className="flex flex-col md:flex-row md:items-end justify-between gap-10 border-b border-gray-100 pb-12">
+                        <div className="space-y-4">
+                            <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500/10 rounded-full border border-emerald-500/20 shadow-sm">
+                                <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(16,185,129,1)]" />
+                                <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest leading-none">Asset Registry: Global Hub</span>
+                            </div>
+                            <h2 className="text-8xl font-black text-slate-950 tracking-tighter leading-none italic">
+                                Asset <span className="text-emerald-600 NOT-italic font-black">Construction</span>
+                            </h2>
+                            <p className="text-slate-400 font-bold uppercase tracking-[0.5em] text-[11px] italic">Strategic Resource Architecture Terminal</p>
+                        </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
+                        <div className="flex items-center gap-4">
+                            <button 
+                                type="button"
+                                onClick={onCancel}
+                                className="px-8 py-6 rounded-[2rem] font-black text-[10px] uppercase tracking-[0.3em] text-slate-400 hover:text-slate-600 transition-all active:scale-95"
+                            >
+                                Abort Protocol
+                            </button>
+                            <button 
+                                type="submit"
+                                className="bg-slate-950 text-white px-12 py-6 rounded-[2rem] font-black text-[10px] uppercase tracking-[0.3em] hover:bg-emerald-600 transition-all shadow-2xl shadow-emerald-900/10 active:scale-95 border border-emerald-500/10 flex items-center gap-3 group"
+                            >
+                                <Save className="w-5 h-5 group-hover:rotate-12 transition-transform" />
+                                Transmit to Ledger
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+            <div className={`grid grid-cols-1 ${isModal ? 'lg:grid-cols-5' : 'md:grid-cols-3'} gap-10`}>
                 {/* Primary Intelligence Section */}
-                <div className="md:col-span-2 space-y-10">
+                <div className={`${isModal ? 'lg:col-span-3' : 'md:col-span-2'} space-y-10`}>
                     <div className="bg-white rounded-[3rem] border border-gray-100 shadow-2xl p-10 space-y-8">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                             {/* Product Name */}
@@ -368,22 +423,106 @@ export default function ProductForm({ initialData, onSave, onCancel }: ProductFo
                 </div>
 
                 {/* Logistics & Visual Section */}
-                <div className="space-y-8">
-                    {/* Market Configuration */}
-                    <div className="bg-white rounded-[3rem] border border-gray-100 shadow-2xl p-8 space-y-6">
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] ml-2">Market Configuration</p>
-                        <div className="space-y-4">
-                            <div className="relative">
-                                <span className="absolute left-6 top-1/2 -translate-y-1/2 text-2xl font-black text-slate-300 italic">₹</span>
-                                <input 
-                                    required
-                                    type="number" step="0.01"
-                                    placeholder="0.00"
-                                    className="w-full p-6 pl-12 bg-slate-50 border-none rounded-[1.5rem] focus:bg-white focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all font-black text-2xl text-slate-800 italic tracking-tighter"
-                                    value={formData.price}
-                                    onChange={(e) => setFormData({...formData, price: e.target.value})}
-                                />
+                <div className={`${isModal ? 'lg:col-span-2' : ''} space-y-8`}>
+                    {/* Advanced Pricing Strategy */}
+                    <div className="bg-emerald-950 rounded-[3rem] shadow-2xl p-10 space-y-8 relative overflow-hidden">
+                        <div className="absolute top-0 right-0 p-8 opacity-10">
+                            <Tag className="w-32 h-32 text-emerald-500" />
+                        </div>
+                        
+                        <div className="relative z-10 space-y-8">
+                            <div className="flex items-center justify-between border-b border-emerald-800 pb-6">
+                                <div>
+                                    <h3 className="text-2xl font-black text-white tracking-tighter italic uppercase">Fiscal Strategy Hub</h3>
+                                    <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mt-1">Unit Cost & Margin Synchronization</p>
+                                </div>
+                                <div className="flex gap-4">
+                                    <div className="space-y-2">
+                                        <label className="text-[8px] font-black text-emerald-500 uppercase tracking-widest block ml-1">Tax Protocol</label>
+                                        <select 
+                                            className="bg-emerald-900 text-white text-[10px] font-black p-3 rounded-xl border border-emerald-800 outline-none focus:ring-2 focus:ring-emerald-500/50 appearance-none min-w-[120px]"
+                                            value={formData.taxId}
+                                            onChange={(e) => setFormData({...formData, taxId: e.target.value})}
+                                        >
+                                            <option value="">No Tax Strategy...</option>
+                                            {taxes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                                        </select>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-[8px] font-black text-emerald-500 uppercase tracking-widest block ml-1">Tax Type</label>
+                                        <select 
+                                            className="bg-emerald-900 text-white text-[10px] font-black p-3 rounded-xl border border-emerald-800 outline-none focus:ring-2 focus:ring-emerald-500/50 appearance-none min-w-[120px]"
+                                            value={formData.taxType}
+                                            onChange={(e) => setFormData({...formData, taxType: e.target.value})}
+                                        >
+                                            <option value="EXCLUSIVE">Exclusive</option>
+                                            <option value="INCLUSIVE">Inclusive</option>
+                                        </select>
+                                    </div>
+                                </div>
                             </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                {/* Purchase Price Exc Tax */}
+                                <div className="bg-emerald-900/40 p-6 rounded-[2rem] border border-emerald-800 space-y-3">
+                                    <label className="text-[9px] font-black text-emerald-500 uppercase tracking-[0.2em] block">Purc. Exc. Tax</label>
+                                    <div className="relative">
+                                        <span className="absolute left-0 top-1/2 -translate-y-1/2 text-xl font-black text-emerald-700 italic">₹</span>
+                                        <input 
+                                            type="number" step="0.01"
+                                            className="w-full bg-transparent pl-4 text-xl font-black text-white italic outline-none"
+                                            value={formData.purchasePriceExcTax}
+                                            onChange={(e) => setFormData({...formData, purchasePriceExcTax: e.target.value})}
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Purchase Price Inc Tax */}
+                                <div className="bg-emerald-900/20 p-6 rounded-[2rem] border border-emerald-800/50 space-y-3 opacity-80">
+                                    <label className="text-[9px] font-black text-emerald-600 uppercase tracking-[0.2em] block">Purc. Inc. Tax</label>
+                                    <div className="relative">
+                                        <span className="absolute left-0 top-1/2 -translate-y-1/2 text-xl font-black text-emerald-800 italic">₹</span>
+                                        <input 
+                                            readOnly
+                                            type="number"
+                                            className="w-full bg-transparent pl-4 text-xl font-black text-emerald-400 italic outline-none cursor-not-allowed"
+                                            value={formData.purchasePriceIncTax}
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Margin */}
+                                <div className="bg-emerald-900/40 p-6 rounded-[2rem] border border-emerald-500/20 space-y-3 bg-gradient-to-br from-emerald-900/40 to-teal-900/40">
+                                    <label className="text-[9px] font-black text-emerald-400 uppercase tracking-[0.2em] block">Profit Margin (%)</label>
+                                    <div className="relative">
+                                        <span className="absolute right-0 top-1/2 -translate-y-1/2 text-xl font-black text-emerald-700 italic">%</span>
+                                        <input 
+                                            type="number" step="0.1"
+                                            className="w-full bg-transparent pr-6 text-xl font-black text-white italic outline-none"
+                                            value={formData.margin}
+                                            onChange={(e) => setFormData({...formData, margin: e.target.value})}
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Final Sell Exc Tax */}
+                                <div className="bg-white p-6 rounded-[2rem] shadow-xl space-y-3">
+                                    <label className="text-[9px] font-black text-emerald-600 uppercase tracking-[0.2em] block">Sell Exc. Tax</label>
+                                    <div className="relative">
+                                        <span className="absolute left-0 top-1/2 -translate-y-1/2 text-xl font-black text-emerald-200 italic">₹</span>
+                                        <input 
+                                            type="number" step="0.01"
+                                            className="w-full bg-transparent pl-4 text-2xl font-black text-emerald-600 italic tracking-tighter outline-none"
+                                            value={formData.price}
+                                            onChange={(e) => setFormData({...formData, price: e.target.value})}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <p className="text-[8px] font-bold text-emerald-700 uppercase tracking-widest text-center italic">
+                                * Pricing telemetry synchronized with {formData.taxType} tax protocol
+                            </p>
                         </div>
                     </div>
 
@@ -405,59 +544,61 @@ export default function ProductForm({ initialData, onSave, onCancel }: ProductFo
                         </div>
                     </div>
 
-                    {/* Quick Buy Purchase Integration (Optional) */}
-                    <div className="bg-gradient-to-br from-indigo-50 to-white rounded-[3rem] border border-indigo-100 shadow-2xl p-8 space-y-6 relative overflow-hidden">
-                        <div className="absolute top-0 right-0 p-6 opacity-10">
-                            <Truck className="w-24 h-24 text-indigo-900" />
-                        </div>
-                        <div className="relative z-10 space-y-6">
-                            <div>
-                                <h3 className="text-xl font-black text-indigo-900 tracking-tighter italic uppercase flex items-center gap-2">
-                                    Quick Buy <span className="text-[10px] bg-indigo-100 text-indigo-600 px-2 py-1 rounded-full font-black NOT-italic tracking-widest">OPTIONAL</span>
-                                </h3>
-                                <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mt-1">Simultaneously originate vendor purchase order</p>
+                    {/* Quick Buy Purchase Integration (Optional) - Hidden in Multi-Procurement Modals */}
+                    {!isModal && (
+                        <div className="bg-gradient-to-br from-indigo-50 to-white rounded-[3rem] border border-indigo-100 shadow-2xl p-8 space-y-6 relative overflow-hidden">
+                            <div className="absolute top-0 right-0 p-6 opacity-10">
+                                <Truck className="w-24 h-24 text-indigo-900" />
                             </div>
-                            
-                            <div className="space-y-4">
-                                <div className="space-y-3">
-                                    <label className="text-[10px] font-black text-indigo-400/80 uppercase tracking-widest ml-2">Primary Vendor (Supplier)</label>
-                                    <div className="relative">
-                                        <select 
-                                            className="w-full p-6 bg-white/60 backdrop-blur-sm border-none rounded-[1.5rem] focus:bg-white focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all font-bold text-slate-800 appearance-none shadow-sm"
-                                            value={formData.supplierId}
-                                            onChange={(e) => setFormData({...formData, supplierId: e.target.value})}
-                                        >
-                                            <option value="">No Initial Purchase...</option>
-                                            {suppliers.map(sup => (
-                                                <option key={sup.id} value={sup.id}>{sup.name}</option>
-                                            ))}
-                                        </select>
-                                        <ChevronDown className="w-5 h-5 absolute right-6 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                                    </div>
+                            <div className="relative z-10 space-y-6">
+                                <div>
+                                    <h3 className="text-xl font-black text-indigo-900 tracking-tighter italic uppercase flex items-center gap-2">
+                                        Quick Buy <span className="text-[10px] bg-indigo-100 text-indigo-600 px-2 py-1 rounded-full font-black NOT-italic tracking-widest">OPTIONAL</span>
+                                    </h3>
+                                    <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mt-1">Simultaneously originate vendor purchase order</p>
                                 </div>
-
-                                {formData.supplierId && (
-                                    <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
-                                        <label className="text-[10px] font-black text-indigo-400/80 uppercase tracking-widest ml-2">Unit Purchase Cost</label>
+                                
+                                <div className="space-y-4">
+                                    <div className="space-y-3">
+                                        <label className="text-[10px] font-black text-indigo-400/80 uppercase tracking-widest ml-2">Primary Vendor (Supplier)</label>
                                         <div className="relative">
-                                            <span className="absolute left-6 top-1/2 -translate-y-1/2 text-lg font-black text-slate-300 italic">₹</span>
-                                            <input 
-                                                required
-                                                type="number" step="0.01"
-                                                placeholder="0.00"
-                                                className="w-full p-6 pl-12 bg-white/60 backdrop-blur-sm border-none rounded-[1.5rem] focus:bg-white focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all font-black text-xl text-indigo-900 italic tracking-tighter shadow-sm"
-                                                value={formData.purchaseCost}
-                                                onChange={(e) => setFormData({...formData, purchaseCost: e.target.value})}
-                                            />
+                                            <select 
+                                                className="w-full p-6 bg-white/60 backdrop-blur-sm border-none rounded-[1.5rem] focus:bg-white focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all font-bold text-slate-800 appearance-none shadow-sm"
+                                                value={formData.supplierId}
+                                                onChange={(e) => setFormData({...formData, supplierId: e.target.value})}
+                                            >
+                                                <option value="">No Initial Purchase...</option>
+                                                {suppliers.map(sup => (
+                                                    <option key={sup.id} value={sup.id}>{sup.name}</option>
+                                                ))}
+                                            </select>
+                                            <ChevronDown className="w-5 h-5 absolute right-6 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                                         </div>
-                                        <p className="text-[9px] font-bold text-indigo-500 text-center uppercase tracking-widest mt-2">
-                                            Logs as <span className="text-rose-500">UNPAID</span> purchase order in ledger
-                                        </p>
                                     </div>
-                                )}
+
+                                    {formData.supplierId && (
+                                        <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                                            <label className="text-[10px] font-black text-indigo-400/80 uppercase tracking-widest ml-2">Unit Purchase Cost</label>
+                                            <div className="relative">
+                                                <span className="absolute left-6 top-1/2 -translate-y-1/2 text-lg font-black text-slate-300 italic">₹</span>
+                                                <input 
+                                                    required
+                                                    type="number" step="0.01"
+                                                    placeholder="0.00"
+                                                    className="w-full p-6 pl-12 bg-white/60 backdrop-blur-sm border-none rounded-[1.5rem] focus:bg-white focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all font-black text-xl text-indigo-900 italic tracking-tighter shadow-sm"
+                                                    value={formData.purchaseCost}
+                                                    onChange={(e) => setFormData({...formData, purchaseCost: e.target.value})}
+                                                />
+                                            </div>
+                                            <p className="text-[9px] font-bold text-indigo-500 text-center uppercase tracking-widest mt-2">
+                                                Logs as <span className="text-rose-500">UNPAID</span> purchase order in ledger
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    )}
 
                     {/* Visual Asset */}
                     <div className="bg-white rounded-[3rem] border border-gray-100 shadow-2xl p-8 space-y-6">
@@ -563,5 +704,6 @@ export default function ProductForm({ initialData, onSave, onCancel }: ProductFo
                 </button>
             </div>
         </form>
+    </div>
     )
 }

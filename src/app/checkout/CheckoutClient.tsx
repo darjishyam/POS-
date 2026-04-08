@@ -23,12 +23,14 @@ import {
     Share2,
     Cpu,
     Target,
-    Activity
+    Activity,
+    Truck
 } from 'lucide-react'
 import Link from 'next/link'
 import { toast, Toaster } from 'react-hot-toast'
 import { useSettings } from '@/context/SettingsContext'
 import BarcodeScanner from '@/components/BarcodeScanner'
+import { motion, AnimatePresence } from 'framer-motion'
 
 export default function CheckoutClient() {
     const { settings } = useSettings()
@@ -47,12 +49,25 @@ export default function CheckoutClient() {
     const [agents, setAgents] = useState<any[]>([])
     const [customers, setCustomers] = useState<any[]>([])
     const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null)
+    
+    // Delivery Protocol States
+    const [isDelivery, setIsDelivery] = useState(false)
+    const [shippingName, setShippingName] = useState('')
+    const [shippingAddress, setShippingAddress] = useState('')
+    const [shippingCity, setShippingCity] = useState('')
+    const [shippingPhone, setShippingPhone] = useState('')
+    const [shippingCost, setShippingCost] = useState(0)
     const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null)
     const [me, setMe] = useState<any>(null)
     const [errors, setErrors] = useState<Record<string, string>>({})
     const [isScannerOpen, setIsScannerOpen] = useState(false)
     const [lastScannedSku, setLastScannedSku] = useState<string | null>(null)
     const [mounted, setMounted] = useState(false)
+
+    const [isSplit, setIsSplit] = useState(false)
+    const [payments, setPayments] = useState<{ amount: number, method: string }[]>([
+        { amount: 0, method: 'CASH' }
+    ])
 
     const validateCard = () => {
         const newErrors: Record<string, string> = {}
@@ -186,7 +201,7 @@ export default function CheckoutClient() {
     const discountAmount = (subtotal * groupDiscountPercent) / 100
     const taxableAmount = subtotal - discountAmount
     const taxAmount = (taxableAmount * (settings.taxRate || 0)) / 100
-    const finalTotal = taxableAmount + taxAmount
+    const finalTotal = taxableAmount + taxAmount + (isDelivery ? (Number(shippingCost) || 0) : 0)
 
     useEffect(() => {
         // Restore payment intent from draft resumption if available
@@ -217,16 +232,23 @@ export default function CheckoutClient() {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    items: cart,
+                    cartItems: cart,
                     totalAmount: finalTotal,
-                    paymentMethod,
+                    paymentMethod: isSplit ? undefined : paymentMethod,
+                    payments: isSplit ? payments : undefined,
                     status: options?.isDraft ? 'DRAFT' : options?.isQuotation ? 'QUOTATION' : 'COMPLETED',
                     cardDetails: paymentMethod === 'CARD' ? cardDetails : null,
                     upiId: paymentMethod === 'UPI' ? upiId : null,
                     agentId: selectedAgentId,
                     customerId: selectedCustomerId,
                     discountAmount: discountAmount,
-                    taxAmount: taxAmount
+                    taxAmount: taxAmount,
+                    isDelivery,
+                    shippingName: isDelivery ? shippingName : null,
+                    shippingAddress: isDelivery ? shippingAddress : null,
+                    shippingCity: isDelivery ? shippingCity : null,
+                    shippingPhone: isDelivery ? shippingPhone : null,
+                    shippingCost: isDelivery ? (Number(shippingCost) || 0) : 0,
                 })
             })
 
@@ -257,7 +279,11 @@ export default function CheckoutClient() {
 
     if (status === 'success' && orderData) {
         return (
-            <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 md:p-12 font-sans selection:bg-blue-100 animate-in fade-in duration-700">
+            <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 md:p-12 font-sans selection:bg-blue-100"
+            >
                 <style dangerouslySetInnerHTML={{ __html: `
                     @media print {
                         body * { visibility: hidden; }
@@ -316,9 +342,14 @@ export default function CheckoutClient() {
                             {/* Success Banner */}
                             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-10">
                                 <div className="space-y-6">
-                                    <div className="w-20 h-20 bg-blue-600 text-white rounded-[2.5rem] flex items-center justify-center shadow-2xl shadow-blue-400 no-print animate-in zoom-in duration-700">
+                                    <motion.div 
+                                        initial={{ scale: 0, rotate: -20 }}
+                                        animate={{ scale: 1, rotate: 0 }}
+                                        transition={{ type: "spring", stiffness: 260, damping: 20 }}
+                                        className="w-20 h-20 bg-blue-600 text-white rounded-[2.5rem] flex items-center justify-center shadow-2xl shadow-blue-400 no-print"
+                                    >
                                         <ShieldCheck className="w-10 h-10" />
-                                    </div>
+                                    </motion.div>
                                     <h1 className="text-6xl font-black text-slate-950 tracking-tighter italic leading-none uppercase">Order <br /><span className="text-blue-600 NOT-italic">Authorized.</span></h1>
                                 </div>
                                 <div className="text-right space-y-3">
@@ -347,9 +378,25 @@ export default function CheckoutClient() {
                                         <CreditCard className="w-3 h-3" />
                                         Protocol Authorized
                                     </p>
-                                    <p className="text-sm font-bold text-slate-800">{orderData.paymentMethod.toUpperCase() === 'UPI' ? `UPI (${orderData.upiId || 'Direct'})` : orderData.paymentMethod.toUpperCase()}</p>
+                                    <p className="text-sm font-bold text-slate-800">
+                                        {orderData.payments && orderData.payments.length > 1 
+                                            ? `Split: ${orderData.payments.map((p: any) => `${p.method}`).join(' + ')}`
+                                            : orderData.paymentMethod.toUpperCase() === 'UPI' ? `UPI (${orderData.upiId || 'Direct'})` : orderData.paymentMethod.toUpperCase()}
+                                    </p>
                                 </div>
                             </div>
+
+                            {orderData.payments && orderData.payments.length > 1 && (
+                                <div className="mt-8 p-10 bg-slate-50 rounded-[3rem] border border-slate-100 space-y-3 animate-in fade-in duration-1000">
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-4 italic">Settlement Breakdown</p>
+                                    {orderData.payments.map((p: any, i: number) => (
+                                        <div key={i} className="flex justify-between items-center text-xs font-bold text-slate-700 uppercase italic">
+                                            <span>{p.method}</span>
+                                            <span className="font-mono text-slate-950 font-black">{settings.currencySymbol}{p.amount.toFixed(2)}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
 
                             {/* Itemized Assets */}
                             <div className="space-y-8">
@@ -424,7 +471,7 @@ export default function CheckoutClient() {
                         </div>
                     </div>
                 </div>
-            </div>
+            </motion.div>
         )
     }
 
@@ -463,7 +510,12 @@ export default function CheckoutClient() {
 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
                     {/* Items List */}
-                    <div className="lg:col-span-7 space-y-8">
+                    <motion.div 
+                        initial={{ opacity: 0, x: -30 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.2 }}
+                        className="lg:col-span-7 space-y-8"
+                    >
                         <div className="bg-white rounded-[3.5rem] p-10 border border-gray-100 shadow-xl shadow-gray-100/30">
                             <div className="flex items-center justify-between mb-8">
                                 <div>
@@ -480,20 +532,29 @@ export default function CheckoutClient() {
                             </div>
 
                             <div className="space-y-6">
-                                {cart.map((item) => (
-                                    <div key={item.id} className="flex gap-6 items-center p-4 hover:bg-slate-50 rounded-3xl transition-all group">
-                                        <div className="w-20 h-20 rounded-2xl overflow-hidden border border-gray-100 bg-slate-50 flex-shrink-0">
-                                            <img src={item.image} className="w-full h-full object-cover grayscale-[0.5] group-hover:grayscale-0 transition-all duration-500" alt={item.name} />
-                                        </div>
-                                        <div className="flex-1">
-                                            <h4 className="text-sm font-black text-slate-900 uppercase italic leading-none truncate">{item.name}</h4>
-                                            <p className="text-[10px] font-black text-slate-400 mt-2 uppercase tracking-widest">{item.quantity} Unit(s) Locked</p>
-                                        </div>
-                                        <div className="text-right">
-                                            <p className="text-lg font-black text-slate-950 italic font-mono tracking-tighter">{settings.currencySymbol}{(item.price * item.quantity).toFixed(2)}</p>
-                                        </div>
-                                    </div>
-                                ))}
+                                <AnimatePresence mode="popLayout">
+                                    {cart.map((item) => (
+                                        <motion.div 
+                                            layout
+                                            initial={{ opacity: 0, y: 10 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            exit={{ opacity: 0, x: -20 }}
+                                            key={item.id} 
+                                            className="flex gap-6 items-center p-4 hover:bg-slate-50 rounded-3xl transition-all group"
+                                        >
+                                            <div className="w-20 h-20 rounded-2xl overflow-hidden border border-gray-100 bg-slate-50 flex-shrink-0">
+                                                <img src={item.image} className="w-full h-full object-cover grayscale-[0.5] group-hover:grayscale-0 transition-all duration-500" alt={item.name} />
+                                            </div>
+                                            <div className="flex-1">
+                                                <h4 className="text-sm font-black text-slate-900 uppercase italic leading-none truncate">{item.name}</h4>
+                                                <p className="text-[10px] font-black text-slate-400 mt-2 uppercase tracking-widest">{item.quantity} Unit(s) Locked</p>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-lg font-black text-slate-950 italic font-mono tracking-tighter">{settings.currencySymbol}{(item.price * item.quantity).toFixed(2)}</p>
+                                            </div>
+                                        </motion.div>
+                                    ))}
+                                </AnimatePresence>
 
                                 {cart.length === 0 && (
                                     <div className="text-center py-12 space-y-4">
@@ -515,43 +576,142 @@ export default function CheckoutClient() {
                                 </p>
                             </div>
                         </div>
-                    </div>
+                    </motion.div>
 
                     {/* Summary & Action */}
-                    <div className="lg:col-span-5 bg-slate-950/80 backdrop-blur-3xl rounded-[3.5rem] p-12 text-white shadow-2xl shadow-blue-900/30 border border-white/10 relative overflow-hidden group/panel transition-all duration-700 hover:shadow-blue-900/40 hover:bg-slate-950/90">
-                        {/* Ambient Glows */}
+                    <motion.div 
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: 0.3 }}
+                        className="lg:col-span-5 bg-slate-950/80 backdrop-blur-3xl rounded-[3.5rem] p-12 text-white shadow-2xl shadow-blue-900/30 border border-white/10 relative overflow-hidden group/panel transition-all duration-700 hover:shadow-blue-900/40 hover:bg-slate-950/90"
+                    >
                         <div className="absolute -bottom-40 -right-40 w-[30rem] h-[30rem] bg-blue-600/20 blur-[128px] rounded-full pointer-events-none transition-opacity duration-1000 group-hover/panel:opacity-100 opacity-60" />
                         <div className="absolute -top-40 -left-40 w-[20rem] h-[20rem] bg-emerald-500/10 blur-[100px] rounded-full pointer-events-none" />
                         
-                        <div className="relative z-10">
-                        {/* Payment Method Selection */}
-                        <div className="flex gap-2 mb-8 p-1 bg-white/5 rounded-2xl border border-white/10">
-                            {[
-                                { id: 'CARD', label: 'Card', icon: CreditCard },
-                                { id: 'CASH', label: 'Cash', icon: Banknote },
-                                { id: 'UPI', label: 'UPI', icon: Landmark }
-                            ].map((method) => (
-                                <button
-                                    key={method.id}
-                                    onClick={() => setPaymentMethod(method.id as any)}
-                                    className={`flex-1 flex items-center justify-center gap-2 py-5 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all ${
-                                        paymentMethod === method.id
-                                            ? 'bg-blue-600 text-white shadow-xl shadow-blue-500/20'
-                                            : 'text-slate-500 hover:text-white hover:bg-white/5'
+                        <div className="relative z-10 h-full flex flex-col">
+                            <div className="flex items-center justify-between mb-6">
+                                <h4 className="text-sm font-black text-slate-500 uppercase tracking-widest italic">Payment Strategy</h4>
+                                <button 
+                                    onClick={() => {
+                                        setIsSplit(!isSplit);
+                                        if (!isSplit) {
+                                            setPayments([{ amount: finalTotal, method: paymentMethod }]);
+                                        }
+                                    }}
+                                    className={`px-4 py-2 rounded-full text-[8px] font-black uppercase tracking-widest transition-all border ${
+                                        isSplit ? 'bg-blue-600 text-white border-blue-500 shadow-lg shadow-blue-500/20' : 'bg-white/5 text-slate-500 border-white/10 hover:border-white/20'
                                     }`}
                                 >
-                                    <method.icon className="w-4 h-4" />
-                                    {method.label}
+                                    {isSplit ? 'Split Active' : 'Enable Split'}
                                 </button>
-                            ))}
-                        </div>
+                            </div>
 
-                        {/* Simulated Card Form */}
-                        {paymentMethod === 'CARD' ? (
-                            <div className="space-y-6 mb-10 animate-in fade-in slide-in-from-top-4 duration-500">
-                                <div className="space-y-3">
-                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Asset Authorization Key (Card Number)</label>
-                                    <div className="relative">
+                            {!isSplit && (
+                                <div className="flex gap-2 mb-8 p-1 bg-white/5 rounded-2xl border border-white/10">
+                                    {[
+                                        { id: 'CARD', label: 'Card', icon: CreditCard },
+                                        { id: 'CASH', label: 'Cash', icon: Banknote },
+                                        { id: 'UPI', label: 'UPI', icon: Landmark }
+                                    ].map((method) => (
+                                        <motion.button
+                                            whileHover={{ scale: 1.05 }}
+                                            whileTap={{ scale: 0.95 }}
+                                            key={method.id}
+                                            onClick={() => setPaymentMethod(method.id as any)}
+                                            className={`flex-1 flex items-center justify-center gap-2 py-5 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all ${
+                                                paymentMethod === method.id
+                                                    ? 'bg-blue-600 text-white shadow-xl shadow-blue-500/20'
+                                                    : 'text-slate-500 hover:text-white hover:bg-white/5'
+                                            }`}
+                                        >
+                                            <method.icon className="w-4 h-4" />
+                                            {method.label}
+                                        </motion.button>
+                                    ))}
+                                </div>
+                            )}
+
+                            <AnimatePresence>
+                                {isSplit && (
+                                    <motion.div 
+                                        initial={{ opacity: 0, height: 0 }}
+                                        animate={{ opacity: 1, height: 'auto' }}
+                                        exit={{ opacity: 0, height: 0 }}
+                                        className="space-y-4 mb-8 p-6 bg-white/5 rounded-[2.5rem] border border-white/10 overflow-hidden"
+                                    >
+                                        {payments.map((p, idx) => (
+                                            <motion.div 
+                                                initial={{ x: -20, opacity: 0 }}
+                                                animate={{ x: 0, opacity: 1 }}
+                                                transition={{ delay: idx * 0.1 }}
+                                                key={idx} 
+                                                className="flex gap-3 items-center group"
+                                            >
+                                                <select 
+                                                    value={p.method}
+                                                    onChange={(e) => {
+                                                        const newPayments = [...payments];
+                                                        newPayments[idx].method = e.target.value;
+                                                        setPayments(newPayments);
+                                                    }}
+                                                    className="bg-slate-900 border border-white/5 rounded-xl px-4 py-4 text-[10px] font-black text-white uppercase outline-none focus:border-blue-500 transition-colors cursor-pointer"
+                                                >
+                                                    <option value="CASH">Cash</option>
+                                                    <option value="CARD">Card</option>
+                                                    <option value="UPI">UPI</option>
+                                                </select>
+                                                <div className="relative flex-1">
+                                                    <input 
+                                                        type="number"
+                                                        value={p.amount || ''}
+                                                        placeholder="Amount"
+                                                        onChange={(e) => {
+                                                            const newPayments = [...payments];
+                                                            newPayments[idx].amount = parseFloat(e.target.value) || 0;
+                                                            setPayments(newPayments);
+                                                        }}
+                                                        className="w-full bg-slate-900 border border-white/5 rounded-xl px-6 py-4 text-xs font-black text-blue-400 placeholder:text-slate-700 outline-none focus:border-blue-500 transition-colors"
+                                                    />
+                                                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-800">{settings.currencySymbol}</span>
+                                                </div>
+                                                {payments.length > 1 && (
+                                                    <button 
+                                                        onClick={() => setPayments(payments.filter((_, i) => i !== idx))}
+                                                        className="w-12 h-12 flex items-center justify-center bg-red-500/10 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all shadow-lg shadow-red-500/5"
+                                                    >
+                                                        ×
+                                                    </button>
+                                                )}
+                                            </motion.div>
+                                        ))}
+                                        <motion.button 
+                                            whileHover={{ scale: 1.02 }}
+                                            whileTap={{ scale: 0.98 }}
+                                            onClick={() => setPayments([...payments, { amount: 0, method: 'CASH' }])}
+                                            className="w-full py-4 border-2 border-dashed border-white/10 rounded-2xl text-[10px] font-black text-slate-500 uppercase tracking-widest hover:border-blue-500 hover:text-blue-500 transition-all active:scale-[0.98]"
+                                        >
+                                            + Add Payment Channel
+                                        </motion.button>
+                                        <div className="flex justify-between items-center pt-4 border-t border-white/5">
+                                            <div>
+                                                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1 italic">Total Split</p>
+                                                <p className={`text-lg font-black italic tracking-tighter ${Math.abs(payments.reduce((sum, p) => sum + p.amount, 0) - finalTotal) < 0.01 ? 'text-emerald-400' : 'text-red-500'}`}>
+                                                    {settings.currencySymbol}{payments.reduce((sum, p) => sum + p.amount, 0).toFixed(2)}
+                                                </p>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1 italic">Target</p>
+                                                <p className="text-lg font-black text-slate-300 italic tracking-tighter">{settings.currencySymbol}{finalTotal.toFixed(2)}</p>
+                                            </div>
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+
+                            {paymentMethod === 'CARD' ? (
+                                <div className="space-y-6 mb-10">
+                                    <div className="space-y-3">
+                                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Asset Authorization Key</label>
                                         <input
                                             type="text"
                                             placeholder="4242 4242 4242 4242"
@@ -559,206 +719,220 @@ export default function CheckoutClient() {
                                             onChange={(e) => setCardDetails({ ...cardDetails, number: e.target.value })}
                                             className={`w-full bg-white/5 border ${errors.number ? 'border-red-500/50' : 'border-white/10'} rounded-2xl p-5 text-sm font-mono tracking-widest focus:ring-2 focus:ring-emerald-500/50 outline-none transition-all placeholder:text-slate-700`}
                                         />
-                                        {errors.number && <p className="text-[10px] text-red-400 font-black mt-2 uppercase tracking-tight">{errors.number}</p>}
-                                        <div className="absolute right-5 top-5 flex gap-2">
-                                            <div className="w-8 h-5 bg-white/10 rounded-sm" />
-                                            <div className="w-8 h-5 bg-white/10 rounded-sm" />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-6">
+                                        <div className="space-y-3">
+                                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Expiry Protocol</label>
+                                            <input
+                                                type="text"
+                                                placeholder="MM / YY"
+                                                value={cardDetails.expiry}
+                                                onChange={(e) => setCardDetails({ ...cardDetails, expiry: e.target.value })}
+                                                className={`w-full bg-white/5 border ${errors.expiry ? 'border-red-500/50' : 'border-white/10'} rounded-2xl p-5 text-sm font-mono focus:ring-2 focus:ring-emerald-500/50 outline-none transition-all placeholder:text-slate-700`}
+                                            />
+                                        </div>
+                                        <div className="space-y-3">
+                                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Security Hash</label>
+                                            <input
+                                                type="text"
+                                                placeholder="***"
+                                                value={cardDetails.cvc}
+                                                onChange={(e) => setCardDetails({ ...cardDetails, cvc: e.target.value })}
+                                                className={`w-full bg-white/5 border ${errors.cvc ? 'border-red-500/50' : 'border-white/10'} rounded-2xl p-5 text-sm font-mono focus:ring-2 focus:ring-emerald-500/50 outline-none transition-all placeholder:text-slate-700`}
+                                            />
                                         </div>
                                     </div>
                                 </div>
-                                <div className="grid grid-cols-2 gap-6">
-                                    <div className="space-y-3">
-                                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Expiry Protocol</label>
-                                        <input
-                                            type="text"
-                                            placeholder="MM / YY"
-                                            value={cardDetails.expiry}
-                                            onChange={(e) => setCardDetails({ ...cardDetails, expiry: e.target.value })}
-                                            className={`w-full bg-white/5 border ${errors.expiry ? 'border-red-500/50' : 'border-white/10'} rounded-2xl p-5 text-sm font-mono focus:ring-2 focus:ring-emerald-500/50 outline-none transition-all placeholder:text-slate-700`}
-                                        />
-                                        {errors.expiry && <p className="text-[10px] text-red-400 font-black mt-2 uppercase tracking-tight">{errors.expiry}</p>}
-                                    </div>
-                                    <div className="space-y-3">
-                                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Security Hash (CVC)</label>
-                                        <input
-                                            type="text"
-                                            placeholder="***"
-                                            value={cardDetails.cvc}
-                                            onChange={(e) => setCardDetails({ ...cardDetails, cvc: e.target.value })}
-                                            className={`w-full bg-white/5 border ${errors.cvc ? 'border-red-500/50' : 'border-white/10'} rounded-2xl p-5 text-sm font-mono focus:ring-2 focus:ring-emerald-500/50 outline-none transition-all placeholder:text-slate-700`}
-                                        />
-                                        {errors.cvc && <p className="text-[10px] text-red-400 font-black mt-2 uppercase tracking-tight">{errors.cvc}</p>}
-                                    </div>
-                                </div>
-                            </div>
-                        ) : paymentMethod === 'UPI' ? (
-                            <div className="space-y-6 mb-10 animate-in fade-in slide-in-from-top-4 duration-500">
-                                <div className="p-8 bg-blue-600/5 border-2 border-dashed border-blue-600/20 rounded-[2.5rem] flex flex-col items-center text-center space-y-4">
-                                    <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-blue-600 shadow-xl border border-blue-50">
-                                        <Landmark className="w-8 h-8" />
-                                    </div>
-                                    <div>
+                            ) : paymentMethod === 'UPI' ? (
+                                <div className="space-y-6 mb-10">
+                                    <div className="p-8 bg-blue-600/5 border-2 border-dashed border-blue-600/20 rounded-[2.5rem] flex flex-col items-center text-center space-y-4">
+                                        <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-blue-600 shadow-xl border border-blue-50">
+                                            <Landmark className="w-8 h-8" />
+                                        </div>
                                         <h4 className="font-black text-sm uppercase italic text-blue-900">Scan & Pay Interface</h4>
-                                        <p className="text-[10px] text-blue-600/60 uppercase tracking-widest mt-2 font-bold italic">Settlement Protocol Ready</p>
                                     </div>
-                                </div>
-                                <div className="space-y-4">
-                                    <label className="text-[10px] font-black text-slate-600 uppercase tracking-widest ml-1">Asset Link (UPI ID)</label>
-                                    <input
-                                        type="text"
-                                        placeholder="username@bank"
-                                        value={upiId}
-                                        onChange={(e) => setUpiId(e.target.value)}
-                                        className="w-full bg-white/5 border border-white/10 rounded-[1.5rem] p-6 text-sm font-black italic tracking-widest focus:ring-4 focus:ring-blue-500/20 outline-none transition-all placeholder:text-slate-700 shadow-inner"
-                                    />
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="mb-10 p-8 border-2 border-dashed border-white/10 rounded-3xl text-center space-y-4 animate-in fade-in slide-in-from-top-4 duration-500">
-                                <div className="p-4 bg-emerald-500/10 text-emerald-400 rounded-full w-fit mx-auto">
-                                    <Banknote className="w-8 h-8" />
-                                </div>
-                                <div className="space-y-1">
-                                    <h4 className="font-black text-sm uppercase italic">Terminal Cash Settlement</h4>
-                                    <p className="text-[10px] text-slate-500 uppercase tracking-widest leading-relaxed">
-                                        Please ensure the asset exchange value is settled in physical currency at the terminal desk.
-                                    </p>
-                                </div>
-                            </div>
-                        )}
-
-                        <div className="space-y-6 mb-10 pt-6 border-t border-white/10">
-                            {/* Identity Verification (Customer Dropdown - ADMIN ONLY) */}
-                            {role === 'admin' ? (
-                                <div className="space-y-3">
-                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1 flex items-center gap-2">
-                                        Acquiring Client (POS Mode)
-                                        <span className="text-[8px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full">Admin Override</span>
-                                    </label>
-                                    <select
-                                        value={selectedCustomerId || ''}
-                                        onChange={(e) => setSelectedCustomerId(e.target.value || null)}
-                                        className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 text-sm font-bold focus:ring-2 focus:ring-emerald-500/50 outline-none transition-all appearance-none text-white italic"
-                                    >
-                                        <option value="" className="bg-slate-900">Walk-in Customer (Standard Price)</option>
-                                        {customers.map(customer => (
-                                            <option key={customer.id} value={customer.id} className="bg-slate-900">
-                                                {customer.name} {customer.customerGroup ? `[${customer.customerGroup.name}]` : ''}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                            ) : me ? (
-                                <div className="p-5 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-8 h-8 bg-emerald-500 text-white rounded-lg flex items-center justify-center font-black text-xs">
-                                            {me.name.charAt(0)}
-                                        </div>
-                                        <div>
-                                            <p className="text-[9px] font-black text-emerald-500 uppercase tracking-widest">Authenticated User</p>
-                                            <p className="text-xs font-bold text-white uppercase italic">{me.name}</p>
-                                        </div>
+                                    <div className="space-y-4">
+                                        <label className="text-[10px] font-black text-slate-600 uppercase tracking-widest ml-1">Asset Link (UPI ID)</label>
+                                        <input
+                                            type="text"
+                                            placeholder="username@bank"
+                                            value={upiId}
+                                            onChange={(e) => setUpiId(e.target.value)}
+                                            className="w-full bg-white/5 border border-white/10 rounded-[1.5rem] p-6 text-sm font-black italic tracking-widest focus:ring-4 focus:ring-blue-500/20 outline-none transition-all placeholder:text-slate-700 shadow-inner"
+                                        />
                                     </div>
-                                    {me.customerGroup && (
-                                        <div className="text-right">
-                                            <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Active Tier</p>
-                                            <p className="text-[10px] font-black text-emerald-400 uppercase italic">{me.customerGroup.name}</p>
-                                        </div>
-                                    )}
                                 </div>
                             ) : (
-                                <Link href="/sign-in" className="block p-5 bg-slate-800/50 hover:bg-slate-800 border border-white/5 rounded-2xl transition-all">
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Pricing Strategy</p>
-                                            <p className="text-xs font-bold text-white uppercase italic">Guest Mode (Standard)</p>
-                                        </div>
-                                        <p className="text-[8px] font-black text-emerald-500 uppercase underline">Sign in for VIP Discounts</p>
+                                <div className="mb-10 p-8 border-2 border-dashed border-white/10 rounded-3xl text-center space-y-4">
+                                    <div className="p-4 bg-emerald-500/10 text-emerald-400 rounded-full w-fit mx-auto">
+                                        <Banknote className="w-8 h-8" />
                                     </div>
-                                </Link>
-                            )}
-
-                             <div className="mb-4 flex items-center gap-3 pt-6 border-t border-white/10">
-                                 <Cpu className="w-4 h-4 text-blue-500" />
-                                 <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Commission Protocol</span>
-                             </div>
-
-                             <div className="space-y-3">
-                                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Commission Agent (Optional)</label>
-                                <select
-                                    value={selectedAgentId || ''}
-                                    onChange={(e) => setSelectedAgentId(e.target.value || null)}
-                                    className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 text-sm font-bold focus:ring-2 focus:ring-emerald-500/50 outline-none transition-all appearance-none text-white"
-                                >
-                                    <option value="" className="bg-slate-900">No Agent (Direct Sale)</option>
-                                    {agents.map(agent => (
-                                        <option key={agent.id} value={agent.id} className="bg-slate-900">
-                                            {agent.name} ({agent.commissionRate}%)
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-
-                            <div className="flex justify-between items-center text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
-                                <span>Gross Subtotal</span>
-                                <span className="text-white">{settings.currencySymbol}{subtotal.toFixed(2)}</span>
-                            </div>
-                            {discountAmount > 0 && (
-                                <div className="flex justify-between items-center text-[10px] font-black text-emerald-500 uppercase tracking-[0.2em] animate-pulse">
-                                    <span>{selectedCustomer?.customerGroup?.name || 'Tier'} Discount ({groupDiscountPercent}%)</span>
-                                    <span>-{settings.currencySymbol}{discountAmount.toFixed(2)}</span>
+                                    <h4 className="font-black text-sm uppercase italic">Terminal Cash Settlement</h4>
                                 </div>
                             )}
-                            <div className="flex justify-between items-center text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
-                                <span>Global Logistics</span>
-                                <span className="text-emerald-400">FREE</span>
-                            </div>
-                            <div className="flex justify-between items-center text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
-                                <span>Compliance Tax ({settings.taxRate}%)</span>
-                                <span className="text-white">{settings.currencySymbol}{taxAmount.toFixed(2)}</span>
-                            </div>
-                            <div className="pt-8 border-t border-white/10 flex justify-between items-end">
-                                <div className="space-y-2">
+
+                            <div className="flex-1 space-y-6 pt-6 border-t border-white/10">
+                                {role === 'admin' ? (
+                                    <div className="space-y-3">
+                                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Acquiring Client</label>
+                                        <select
+                                            value={selectedCustomerId || ''}
+                                            onChange={(e) => setSelectedCustomerId(e.target.value || null)}
+                                            className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 text-sm font-bold text-white italic outline-none"
+                                        >
+                                            <option value="" className="bg-slate-900">Walk-in Customer</option>
+                                            {customers.map(c => <option key={c.id} value={c.id} className="bg-slate-900">{c.name}</option>)}
+                                        </select>
+                                    </div>
+                                ) : me && (
+                                    <div className="p-5 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex justify-between items-center text-white italic">
+                                        <span>{me.name}</span>
+                                        <span className="text-[9px] uppercase tracking-widest font-black text-emerald-500">Authenticated</span>
+                                    </div>
+                                )}
+
+                                <div className="space-y-3">
+                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Field Agent</label>
+                                    <select
+                                        value={selectedAgentId || ''}
+                                        onChange={(e) => setSelectedAgentId(e.target.value || null)}
+                                        className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 text-sm font-bold text-white italic outline-none"
+                                    >
+                                        <option value="" className="bg-slate-900">Direct Sale (No Agent)</option>
+                                        {agents.map(a => <option key={a.id} value={a.id} className="bg-slate-900">{a.name}</option>)}
+                                    </select>
+                                </div>
+
+                                {/* Delivery Protocol */}
+                                <div className="pt-4 border-t border-white/5 space-y-4">
+                                    <div 
+                                        onClick={() => setIsDelivery(!isDelivery)}
+                                        className={`p-4 rounded-2xl border transition-all cursor-pointer flex justify-between items-center ${
+                                            isDelivery 
+                                                ? 'bg-blue-600/20 border-blue-500/50 text-blue-400 font-black' 
+                                                : 'bg-white/5 border-white/10 text-slate-500 font-bold'
+                                        }`}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <div className={`p-2 rounded-lg ${isDelivery ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/50' : 'bg-white/5'}`}>
+                                                <Truck className="w-4 h-4" />
+                                            </div>
+                                            <span className="text-[10px] uppercase tracking-widest leading-none">Require Delivery Protocol</span>
+                                        </div>
+                                        <div className={`w-10 h-5 rounded-full transition-all relative ${isDelivery ? 'bg-blue-500' : 'bg-white/10'}`}>
+                                            <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${isDelivery ? 'right-1' : 'left-1'}`} />
+                                        </div>
+                                    </div>
+
+                                    <AnimatePresence>
+                                        {isDelivery && (
+                                            <motion.div 
+                                                initial={{ height: 0, opacity: 0 }}
+                                                animate={{ height: 'auto', opacity: 1 }}
+                                                exit={{ height: 0, opacity: 0 }}
+                                                className="overflow-hidden space-y-4"
+                                            >
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    <div className="space-y-2">
+                                                        <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Recipient Name</label>
+                                                        <input 
+                                                            type="text"
+                                                            placeholder="Identity Signature"
+                                                            value={shippingName}
+                                                            onChange={(e) => setShippingName(e.target.value)}
+                                                            className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-xs text-white placeholder:text-slate-600 outline-none focus:border-blue-500/50 transition-colors"
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Phone Axis</label>
+                                                        <input 
+                                                            type="text"
+                                                            placeholder="+91-0000000000"
+                                                            value={shippingPhone}
+                                                            onChange={(e) => setShippingPhone(e.target.value)}
+                                                            className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-xs text-white placeholder:text-slate-600 outline-none focus:border-blue-500/50 transition-colors"
+                                                        />
+                                                    </div>
+                                                </div>
+
+                                                <div className="space-y-2">
+                                                    <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Geographic Address</label>
+                                                    <textarea 
+                                                        placeholder="Full Physical Coordinates"
+                                                        rows={2}
+                                                        value={shippingAddress}
+                                                        onChange={(e) => setShippingAddress(e.target.value)}
+                                                        className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-xs text-white placeholder:text-slate-600 outline-none focus:border-blue-500/50 transition-colors resize-none"
+                                                    />
+                                                </div>
+
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    <div className="space-y-2">
+                                                        <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">City Node</label>
+                                                        <input 
+                                                            type="text"
+                                                            placeholder="Urban Sector"
+                                                            value={shippingCity}
+                                                            onChange={(e) => setShippingCity(e.target.value)}
+                                                            className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-xs text-white placeholder:text-slate-600 outline-none focus:border-blue-500/50 transition-colors"
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Shipping Fee</label>
+                                                        <div className="relative">
+                                                            <input 
+                                                                type="number"
+                                                                placeholder="0.00"
+                                                                value={shippingCost || ''}
+                                                                onChange={(e) => setShippingCost(Number(e.target.value))}
+                                                                className="w-full bg-white/5 border border-white/10 rounded-xl p-3 pl-8 text-xs text-white placeholder:text-slate-600 outline-none focus:border-blue-500/50 transition-colors"
+                                                            />
+                                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-[10px] font-black">{settings.currencySymbol}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                </div>
+
+                                <div className="flex justify-between items-center text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                                    <span>Gross Subtotal</span>
+                                    <span className="text-white">{settings.currencySymbol}{subtotal.toFixed(2)}</span>
+                                </div>
+                                
+                                <div className="pt-8 border-t border-white/10">
                                     <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block italic mb-2">Total Payable Matrix</span>
-                                    <h2 className="text-5xl font-black text-blue-400 italic tracking-tighter truncate leading-none">
+                                    <h2 className="text-5xl font-black text-blue-400 italic tracking-tighter leading-none">
                                         {settings.currencySymbol}{mounted ? finalTotal.toFixed(2) : '--'}
                                     </h2>
                                 </div>
+
+                                <div className="grid grid-cols-2 gap-4 mt-auto">
+                                    <button 
+                                        onClick={() => handleCheckout({ isDraft: true })}
+                                        className="bg-slate-900 text-slate-400 py-6 rounded-3xl font-black text-[10px] uppercase tracking-widest border border-slate-800"
+                                    >
+                                        Save Draft
+                                    </button>
+                                    <motion.button 
+                                        whileHover={{ scale: 1.02, backgroundColor: 'rgba(37, 99, 235, 1)' }}
+                                        whileTap={{ scale: 0.98 }}
+                                        onClick={() => handleCheckout()}
+                                        disabled={status !== 'idle' || cart.length === 0 || (isSplit && Math.abs(payments.reduce((sum, p) => sum + p.amount, 0) - finalTotal) >= 0.01)}
+                                        className="bg-blue-600 text-white py-6 rounded-[2.5rem] font-black text-[12px] uppercase tracking-[0.3em] shadow-2xl flex items-center justify-center gap-3"
+                                    >
+                                        {status === 'processing' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-5 h-5 fill-white" />}
+                                        Authorize
+                                    </motion.button>
+                                </div>
                             </div>
+                            
+                            <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mt-6 text-center italic">
+                                By authorizing, you agree to our marketplace protocols.
+                            </p>
                         </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                            <button 
-                                onClick={() => handleCheckout({ isDraft: true })}
-                                disabled={status !== 'idle' || cart.length === 0}
-                                className="bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-slate-400 py-6 rounded-3xl font-black text-[10px] uppercase tracking-widest transition-all border border-slate-800 flex items-center justify-center gap-2 group italic"
-                            >
-                                <List className="w-3.5 h-3.5" />
-                                Save Draft
-                            </button>
-
-                             <button 
-                                 onClick={() => handleCheckout()}
-                                 disabled={status !== 'idle' || cart.length === 0}
-                                 className="bg-blue-600 hover:bg-blue-500 disabled:bg-slate-800 disabled:text-slate-500 text-white py-6 rounded-[2.5rem] font-black text-[12px] uppercase tracking-[0.3em] transition-all shadow-2xl shadow-blue-900/40 flex items-center justify-center gap-3 group active:scale-95 overflow-hidden relative border border-blue-500/30"
-                             >
-                                 {status === 'processing' ? (
-                                     <Loader2 className="w-4 h-4 animate-spin text-white" />
-                                 ) : (
-                                     <>
-                                         <Zap className="w-5 h-5 fill-white" />
-                                         Authorize
-                                         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
-                                     </>
-                                 )}
-                             </button>
-                        </div>
-                        
-                        <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mt-6 text-center italic">
-                            By authorizing, you agree to our marketplace protocols and asset licensing terms.
-                        </p>
-                        </div>
-                    </div>
+                    </motion.div>
                 </div>
             </div>
         </div>

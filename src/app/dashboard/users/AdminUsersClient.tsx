@@ -132,7 +132,7 @@ export default function AdminUsersClient() {
                             </div>
                             <div className="px-8 py-2 text-center">
                                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Privileged</p>
-                                <p className="text-3xl font-black text-blue-600 italic tracking-tighter">{(users || []).filter(u => u.role?.toLowerCase() === 'admin' || u.email?.toLowerCase() === 'professorshyam123@gmail.com').length.toString().padStart(2, '0')}</p>
+                                <p className="text-3xl font-black text-blue-600 italic tracking-tighter">{(users || []).filter(u => u.role?.toLowerCase() === 'admin').length.toString().padStart(2, '0')}</p>
                             </div>
                         </div>
 

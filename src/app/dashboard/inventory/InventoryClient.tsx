@@ -14,7 +14,8 @@ import {
     FileText,
     Printer,
     X,
-    ArrowUpRight
+    ArrowUpRight,
+    ShoppingCart
 } from 'lucide-react'
 import BarcodeLabel from '@/components/BarcodeLabel'
 import { toast, Toaster } from 'react-hot-toast'
@@ -257,7 +258,7 @@ export default function InventoryClient() {
 
                     <div className="flex items-center gap-4">
                         <button
-                            onClick={() => router.push('/dashboard/inventory/create')}
+                            onClick={() => router.push('/dashboard/purchases?create=true')}
                             className="bg-slate-950 text-white px-10 py-6 rounded-[2rem] font-black text-[10px] uppercase tracking-[0.3em] hover:bg-black transition-all shadow-2xl shadow-slate-200 active:scale-95 flex items-center gap-3 group border border-blue-500/10"
                         >
                             <Plus className="w-5 h-5 group-hover:rotate-90 group-hover:text-blue-400 transition-all duration-500" />
@@ -288,15 +289,20 @@ export default function InventoryClient() {
                             <ArrowUpRight className="w-6 h-6" />
                         </div>
                     </div>
-                    <div className="bg-white/80 backdrop-blur-xl p-8 rounded-[2.5rem] border border-white shadow-xl flex items-center justify-between group">
+                    <button 
+                        onClick={() => router.push('/dashboard/inventory/alerts')}
+                        className="bg-white/80 backdrop-blur-xl p-8 rounded-[2.5rem] border border-white shadow-xl flex items-center justify-between group hover:border-rose-500/50 hover:shadow-2xl hover:shadow-rose-500/5 transition-all text-left"
+                    >
                         <div>
                             <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.4em] mb-2">Critical Nodes</p>
-                            <p className="text-5xl font-black text-rose-600 italic tracking-tighter">{products.filter(p => p.stock < 10).length.toString().padStart(2, '0')}</p>
+                            <p className="text-5xl font-black text-rose-600 italic tracking-tighter">
+                                {products.filter(p => p.manageStock && p.stock <= p.alertQuantity).length.toString().padStart(2, '0')}
+                            </p>
                         </div>
-                        <div className="w-14 h-14 bg-rose-500/10 rounded-2xl flex items-center justify-center text-rose-600 border border-rose-500/20 group-hover:rotate-6 transition-all">
+                        <div className="w-14 h-14 bg-rose-500/10 rounded-2xl flex items-center justify-center text-rose-600 border border-rose-500/20 group-hover:bg-rose-600 group-hover:text-white transition-all transform group-hover:rotate-6">
                             <AlertCircle className="w-6 h-6" />
                         </div>
-                    </div>
+                    </button>
                 </div>
 
                 {/* Filters & Protocols */}
@@ -447,6 +453,13 @@ export default function InventoryClient() {
                                         </td>
                                         <td className="px-8 py-6 text-right">
                                             <div className="flex items-center justify-end gap-2">
+                                                <button
+                                                    onClick={() => router.push(`/dashboard/purchases?productId=${prod.id}`)}
+                                                    className="p-3 bg-white border border-slate-100 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all shadow-sm group"
+                                                    title="Initiate Procurement / Restock"
+                                                >
+                                                    <ShoppingCart className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                                                </button>
                                                 <button
                                                     onClick={() => setBarcodeProduct(prod)}
                                                     className="p-3 bg-white border border-slate-100 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all shadow-sm group"

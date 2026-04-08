@@ -21,18 +21,24 @@ import {
     IndianRupee,
     Download,
     FileText,
-    Eye
+    Eye,
+    PlusCircle
 } from 'lucide-react'
 import Link from 'next/link'
+import ProductForm from '@/components/ProductForm'
 import * as XLSX from 'xlsx'
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 
-interface Product {
+interface PurchaseFlowProduct {
     id: string
     name: string
     price: number
     sku: string
+    purchasePriceExcTax?: number
+    purchasePriceIncTax?: number
+    taxId?: string
+    taxType?: string
 }
 
 interface Supplier {
@@ -64,9 +70,12 @@ interface Purchase {
 export default function PurchasesClient() {
     const [purchases, setPurchases] = useState<Purchase[]>([])
     const [suppliers, setSuppliers] = useState<Supplier[]>([])
-    const [products, setProducts] = useState<Product[]>([])
+    const [products, setProducts] = useState<PurchaseFlowProduct[]>([])
     const [locations, setLocations] = useState<{ id: string, name: string, address?: string | null }[]>([])
+    const [taxes, setTaxes] = useState<any[]>([])
     const [isModalOpen, setIsModalOpen] = useState(false)
+    const [isProductModalOpen, setIsProductModalOpen] = useState(false)
+    const [activeItemIndex, setActiveItemIndex] = useState<number | null>(null)
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)
     const [isReturnModalOpen, setIsReturnModalOpen] = useState(false)
     const [selectedPurchase, setSelectedPurchase] = useState<any>(null)
@@ -77,6 +86,7 @@ export default function PurchasesClient() {
     const urlInitialized = useRef(false)
     const searchParams = useSearchParams()
     const productIdFromUrl = searchParams.get('productId')
+    const createFromUrl = searchParams.get('create')
 
     // Form states
     const [supplierId, setSupplierId] = useState('')
@@ -84,7 +94,18 @@ export default function PurchasesClient() {
     const [referenceNumber, setReferenceNumber] = useState('')
     const [amountPaid, setAmountPaid] = useState<number>(0)
     const [paymentMethod, setPaymentMethod] = useState('CASH')
-    const [items, setItems] = useState<any[]>([{ productId: '', quantity: 1, unitCost: 0, syncPrice: false, newPrice: 0 }])
+    const [items, setItems] = useState<any[]>([{ 
+        productId: '', 
+        quantity: 1, 
+        unitCost: 0, 
+        unitCostExcTax: 0, 
+        unitCostIncTax: 0, 
+        taxId: '', 
+        taxType: 'EXCLUSIVE', 
+        taxRate: 0, 
+        syncPrice: false, 
+        newPrice: 0 
+    }])
 
     useEffect(() => {
         setMounted(true)
@@ -92,33 +113,55 @@ export default function PurchasesClient() {
     }, [])
 
     useEffect(() => {
+        // Handle direct product replenishment from URL
         if (productIdFromUrl && products.length > 0 && !isModalOpen && items[0]?.productId === '' && !urlInitialized.current) {
-            const product = products.find(p => p.id === productIdFromUrl)
+            const product = products.find(p => p.id === productIdFromUrl) as PurchaseFlowProduct
             if (product) {
-                setItems([{ productId: productIdFromUrl, quantity: 1, unitCost: 0, syncPrice: false, newPrice: 0 }])
+                setItems([{ 
+                    productId: productIdFromUrl, 
+                    quantity: 1, 
+                    unitCost: product.purchasePriceExcTax || 0,
+                    unitCostExcTax: product.purchasePriceExcTax || 0,
+                    unitCostIncTax: product.purchasePriceIncTax || 0,
+                    taxId: product.taxId || '',
+                    taxType: product.taxType || 'EXCLUSIVE',
+                    syncPrice: false, 
+                    newPrice: 0 
+                }])
                 setIsModalOpen(true)
                 urlInitialized.current = true
                 toast.success(`Replenishing ${product.name}`)
             }
         }
-    }, [productIdFromUrl, products, isModalOpen])
+
+        // Handle Redirect from 'Construct Asset' in Inventory
+        if (createFromUrl === 'true' && !isModalOpen && !urlInitialized.current) {
+            setIsModalOpen(true)
+            setActiveItemIndex(0)
+            setIsProductModalOpen(true)
+            urlInitialized.current = true
+        }
+    }, [productIdFromUrl, createFromUrl, products, isModalOpen])
 
     const fetchData = async () => {
         try {
-            const [pRes, sRes, prRes, lRes] = await Promise.all([
+            const [pRes, sRes, prRes, lRes, tRes] = await Promise.all([
                 fetch('/api/purchases'),
                 fetch('/api/suppliers'),
                 fetch('/api/products'),
-                fetch('/api/locations')
+                fetch('/api/locations'),
+                fetch('/api/taxes')
             ])
             const pData = await pRes.json()
             const sData = await sRes.json()
             const prData = await prRes.json()
             const lData = await lRes.json()
+            const tData = await tRes.json()
             setPurchases(Array.isArray(pData) ? pData : [])
             setSuppliers(Array.isArray(sData) ? sData : [])
             setProducts(Array.isArray(prData) ? prData : [])
             setLocations(Array.isArray(lData) ? lData : [])
+            setTaxes(Array.isArray(tData) ? tData : [])
             setLoading(false)
         } catch (error) {
             toast.error('Failed to load procurement data')
@@ -201,9 +244,18 @@ export default function PurchasesClient() {
         toast.success('Purchases Exported to PDF')
     }
 
-    const addItem = () => {
-        setItems([...items, { productId: '', quantity: 1, unitCost: 0, syncPrice: false, newPrice: 0 }])
-    }
+    const addItem = () => setItems([...items, { 
+        productId: '', 
+        quantity: 1, 
+        unitCost: 0, 
+        unitCostExcTax: 0, 
+        unitCostIncTax: 0, 
+        taxId: '', 
+        taxType: 'EXCLUSIVE', 
+        taxRate: 0, 
+        syncPrice: false, 
+        newPrice: 0 
+    }])
 
     const removeItem = (index: number) => {
         setItems(items.filter((_, i) => i !== index))
@@ -211,11 +263,38 @@ export default function PurchasesClient() {
 
     const updateItem = (index: number, field: string, value: any) => {
         const newItems = [...items]
-        newItems[index][field] = value
+        newItems[index] = { ...newItems[index], [field]: value }
+
+        // Initialize newPrice if productId changes
+        if (field === 'productId') {
+            const product = products.find(p => p.id === value);
+            if (product) {
+                newItems[index].newPrice = product.price || 0;
+            }
+        }
+
+        // Trigger dynamic fiscal calculations if tax or cost changes
+        if (field === 'taxId' || field === 'taxType' || field === 'unitCostExcTax' || field === 'unitCostIncTax' || field === 'productId') {
+            const item = newItems[index]
+            const selectedTax = taxes.find(t => t.id === (field === 'taxId' ? value : item.taxId))
+            const rate = selectedTax ? selectedTax.rate : 0
+            
+            if (field === 'unitCostIncTax') {
+                const inc = parseFloat(value) || 0
+                item.unitCostExcTax = inc / (1 + rate / 100)
+                item.unitCost = item.unitCostExcTax // Legacy compatibility
+            } else {
+                const exc = parseFloat(field === 'unitCostExcTax' ? value : item.unitCostExcTax) || 0
+                item.unitCostIncTax = exc * (1 + rate / 100)
+                item.unitCost = exc // Legacy compatibility
+            }
+            item.taxRate = rate
+        }
+
         setItems(newItems)
     }
 
-    const totalAmount = items.reduce((sum, item) => sum + (item.quantity * item.unitCost), 0)
+    const calculateTotal = () => items.reduce((sum, item) => sum + (item.quantity * (item.taxType === 'INCLUSIVE' ? item.unitCostIncTax : item.unitCostExcTax)), 0)
 
     const [purchaseStatus, setPurchaseStatus] = useState('RECEIVED')
 
@@ -226,9 +305,10 @@ export default function PurchasesClient() {
         if (items.some(item => !item.productId || item.quantity <= 0)) return toast.error('Invalid items')
 
         setSubmitting(true)
-        const loadingToast = toast.loading('Executing Batch Procurement...')
+        const loadingToast = toast.loading('Sinking Purchase Order...')
 
         try {
+            const taxAmountTotal = items.reduce((acc, item) => acc + ((item.unitCostIncTax - item.unitCostExcTax) * item.quantity), 0)
             const res = await fetch('/api/purchases', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -236,7 +316,8 @@ export default function PurchasesClient() {
                     supplierId,
                     locationId,
                     referenceNumber,
-                    totalAmount,
+                    totalAmount: calculateTotal(),
+                    taxAmount: taxAmountTotal,
                     amountPaid: Number(amountPaid),
                     paymentMethod,
                     status: purchaseStatus,
@@ -245,16 +326,16 @@ export default function PurchasesClient() {
             })
 
             if (res.ok) {
-                toast.success('Batch Stock-In Successful', { id: loadingToast })
+                toast.success('Procurement Successful', { id: loadingToast })
                 setIsModalOpen(false)
-                setItems([{ productId: '', quantity: 1, unitCost: 0, syncPrice: false, newPrice: 0 }])
+                setItems([{ productId: '', quantity: 1, unitCost: 0, unitCostExcTax: 0, unitCostIncTax: 0, taxId: '', taxType: 'EXCLUSIVE', taxRate: 0, syncPrice: false, newPrice: 0 }])
                 setSupplierId('')
                 setLocationId('')
                 setReferenceNumber('')
                 fetchData()
             }
         } catch (error) {
-            toast.error('Procurement failure', { id: loadingToast })
+            toast.error('Sync failed', { id: loadingToast })
         } finally {
             setSubmitting(false)
         }
@@ -316,6 +397,18 @@ export default function PurchasesClient() {
         }
     }
 
+    const openReturnModal = (purchase: any) => {
+        setSelectedPurchase(purchase)
+        setItems(purchase.items.map((i: any) => ({ 
+            productId: i.productId, 
+            quantity: 0,
+            product: i.product,
+            maxQuantity: i.quantity 
+        })))
+        setReferenceNumber('')
+        setIsReturnModalOpen(true)
+    }
+
     const handleReceive = async (purchaseId: string) => {
         const loadingToast = toast.loading('Synchronizing Stock Arrival...')
         try {
@@ -333,16 +426,49 @@ export default function PurchasesClient() {
         }
     }
 
-    const openReturnModal = (purchase: any) => {
-        setSelectedPurchase(purchase)
-        setItems(purchase.items.map((i: any) => ({ 
-            productId: i.productId, 
-            quantity: 0,
-            product: i.product,
-            maxQuantity: i.quantity 
-        })))
-        setReferenceNumber('')
-        setIsReturnModalOpen(true)
+    const handleNewProductSave = async (data: any) => {
+        const loadingToast = toast.loading('Registering New Asset...')
+        try {
+            const res = await fetch('/api/products', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            })
+            const newProduct = await res.json()
+            if (res.ok) {
+                toast.success('Asset Globally Recognized', { id: loadingToast })
+                
+                // Refresh local product list
+                const prRes = await fetch('/api/products')
+                const prData = await prRes.json()
+                setProducts(Array.isArray(prData) ? prData : [])
+
+                // Update the active item row with new fiscal metadata
+                if (activeItemIndex !== null) {
+                    const newItems = [...items]
+                    const item = newItems[activeItemIndex]
+                    item.productId = newProduct.id
+                    item.unitCostExcTax = parseFloat(newProduct.purchasePriceExcTax) || 0
+                    item.taxId = newProduct.taxId || ''
+                    item.taxType = newProduct.taxType || 'EXCLUSIVE'
+                    
+                    // Recalculate Inc Tax for this row
+                    const selectedTax = taxes.find(t => t.id === item.taxId)
+                    const rate = selectedTax ? selectedTax.rate : 0
+                    item.unitCostIncTax = item.unitCostExcTax * (1 + rate / 100)
+                    item.unitCost = item.unitCostExcTax
+                    
+                    setItems(newItems)
+                }
+                
+                setIsProductModalOpen(false)
+                setActiveItemIndex(null)
+            } else {
+                toast.error('Registration Protocol Failure', { id: loadingToast })
+            }
+        } catch (error) {
+            toast.error('System Synchronization Error', { id: loadingToast })
+        }
     }
 
     return (
@@ -671,7 +797,7 @@ export default function PurchasesClient() {
                                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Initial Disbursement (Amount Paid)</label>
                                         <div className="relative">
                                             <input
-                                                type="number" step="0.01" min="0" max={totalAmount}
+                                                type="number" step="0.01" min="0" max={calculateTotal()}
                                                 value={amountPaid}
                                                 onChange={(e) => setAmountPaid(parseFloat(e.target.value) || 0)}
                                                 className="w-full p-6 bg-white border-2 border-slate-100 rounded-2xl focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all font-black text-2xl text-slate-900 tracking-tighter italic"
@@ -705,78 +831,122 @@ export default function PurchasesClient() {
                                     </div>
                                     
                                     {items.map((item, index) => (
-                                        <div key={index} className="grid grid-cols-12 gap-6 items-end bg-slate-50/50 p-6 rounded-[2.5rem] border border-gray-100 group hover:border-emerald-200 transition-all">
-                                            <div className="col-span-6 space-y-2">
+                                        <div key={index} className="grid grid-cols-12 gap-5 items-end bg-white/60 p-6 rounded-[2.5rem] border border-gray-100 group hover:border-emerald-200 transition-all shadow-[0_8px_30px_rgb(0,0,0,0.02)]">
+                                            <div className="col-span-4">
                                                 <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Entity Selection</label>
-                                                <select
-                                                    required
-                                                    value={item.productId}
-                                                    onChange={(e) => updateItem(index, 'productId', e.target.value)}
-                                                    className="w-full bg-white border-none rounded-2xl p-4 font-bold text-sm focus:ring-2 focus:ring-emerald-500/10 outline-none"
-                                                >
-                                                    <option value="">Choose Asset...</option>
-                                                    {products.map(p => <option key={p.id} value={p.id}>{p.name.toUpperCase()} (CURR: ₹{p.price})</option>)}
-                                                </select>
-                                                {item.productId && (
-                                                    <div className="flex items-center gap-4 mt-4 px-2 animate-in fade-in slide-in-from-left-2 duration-300">
-                                                        <button 
-                                                            type="button"
-                                                            onClick={() => updateItem(index, 'syncPrice', !item.syncPrice)}
-                                                            className={`flex items-center gap-3 px-6 py-3 rounded-xl border-2 text-xs font-black uppercase tracking-widest transition-all shadow-sm block ${item.syncPrice ? 'bg-indigo-600 text-white border-indigo-500 shadow-lg shadow-indigo-200/50 scale-105' : 'bg-blue-50/50 text-blue-600 border-blue-200 hover:border-indigo-400 hover:bg-white hover:shadow-md'}`}
+                                                <div className="flex items-center gap-3">
+                                                    <select
+                                                        required
+                                                        value={item.productId}
+                                                        onChange={(e) => updateItem(index, 'productId', e.target.value)}
+                                                        className="flex-1 bg-white border-none rounded-2xl p-4 font-bold text-sm focus:ring-2 focus:ring-emerald-500/10 outline-none"
+                                                    >
+                                                        <option value="">Choose Asset...</option>
+                                                        {products.map(p => <option key={p.id} value={p.id}>{p.name.toUpperCase()}</option>)}
+                                                    </select>
+                                                    <button 
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setActiveItemIndex(index)
+                                                            setIsProductModalOpen(true)
+                                                        }}
+                                                        className="p-4 bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white rounded-2xl transition-all border border-emerald-100 italic font-black text-[10px] uppercase tracking-tighter"
+                                                        title="Create New Asset"
+                                                    >
+                                                        New?
+                                                    </button>
+                                                </div>
+
+                                                {/* Line Item Fiscal Hub */}
+                                                <div className="mt-6 grid grid-cols-2 gap-4 bg-white/40 p-3 rounded-2xl border border-white/60 shadow-inner">
+                                                    <div className="space-y-1">
+                                                        <label className="text-[7px] font-black text-slate-400 uppercase tracking-widest ml-1">Tax Strategy</label>
+                                                        <select
+                                                            value={item.taxId}
+                                                            onChange={(e) => updateItem(index, 'taxId', e.target.value)}
+                                                            className="w-full bg-white border-none rounded-lg p-2 text-[9px] font-black focus:ring-2 focus:ring-blue-500/10 outline-none"
                                                         >
-                                                            <Sparkles className="w-5 h-5 animate-pulse" />
-                                                            {item.syncPrice ? '✨ CUSTOM MSRP ACTIVE ✨' : 'UPDATE SELLING PRICE (MSRP)'}
-                                                        </button>
-                                                        {item.syncPrice && (
-                                                            <div className="flex items-center gap-3 bg-indigo-50 px-5 py-3 rounded-xl border-2 border-indigo-200 shadow-inner">
-                                                                <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">New MSRP:</span>
-                                                                <div className="relative flex items-center">
-                                                                    <span className="absolute left-2 text-indigo-700 font-bold shrink-0">₹</span>
-                                                                    <input 
-                                                                        type="number" step="0.01"
-                                                                        value={item.newPrice}
-                                                                        onChange={(e) => updateItem(index, 'newPrice', parseFloat(e.target.value))}
-                                                                        className="w-28 pl-7 bg-white rounded-md border text-sm font-black text-indigo-900 focus:ring-4 focus:ring-indigo-500/20 p-2 outline-none transition-all shadow-sm"
-                                                                        placeholder="0.00"
-                                                                    />
-                                                                </div>
-                                                            </div>
-                                                        )}
+                                                            <option value="">No Tax</option>
+                                                            {taxes.map(t => <option key={t.id} value={t.id}>{t.name} ({t.rate}%)</option>)}
+                                                        </select>
                                                     </div>
-                                                )}
-                                            </div>
-                                            <div className="col-span-2 space-y-2">
-                                                <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">QTY</label>
-                                                <input
-                                                    type="number" min="1"
-                                                    value={item.quantity}
-                                                    onChange={(e) => updateItem(index, 'quantity', parseInt(e.target.value))}
-                                                    className="w-full bg-white border-none rounded-2xl p-4 font-bold text-sm focus:ring-2 focus:ring-emerald-500/10 outline-none"
-                                                />
-                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">UNIT COST: ₹{item.unitCost?.toFixed(2)}</p>
+                                                    <div className="space-y-1">
+                                                        <label className="text-[7px] font-black text-slate-400 uppercase tracking-widest ml-1">Protocol</label>
+                                                        <select
+                                                            value={item.taxType}
+                                                            onChange={(e) => updateItem(index, 'taxType', e.target.value)}
+                                                            className="w-full bg-white border-none rounded-lg p-2 text-[9px] font-black focus:ring-2 focus:ring-blue-500/10 outline-none"
+                                                        >
+                                                            <option value="EXCLUSIVE">Exc (+)</option>
+                                                            <option value="INCLUSIVE">Inc (-)</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
                                             </div>
 
-                                            <div className="col-span-3 space-y-2">
-                                                <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Cost / Unit (₹)</label>
-                                                <input
-                                                    type="number" step="0.01"
-                                                    value={item.unitCost}
-                                                    onChange={(e) => updateItem(index, 'unitCost', parseFloat(e.target.value))}
-                                                    className="w-full p-4 bg-white border-2 border-slate-100 rounded-2xl font-black text-slate-900 focus:border-blue-500 outline-none transition-all placeholder:text-slate-200"
-                                                    placeholder="0.00"
-                                                />
+                                            <div className="col-span-2 space-y-2">
+                                                <label className="text-[9px] font-black text-rose-500 uppercase tracking-widest ml-1 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-100 italic">Buy Price (Net)</label>
+                                                <div className="relative">
+                                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-black text-rose-300 italic">₹</span>
+                                                    <input
+                                                        type="number"
+                                                        step="0.01"
+                                                        value={item.unitCostIncTax}
+                                                        onChange={(e) => updateItem(index, 'unitCostIncTax', e.target.value)}
+                                                        className="w-full pl-7 pr-4 py-5 bg-rose-50/30 border border-rose-100 rounded-2xl font-black text-sm text-rose-700 italic focus:ring-2 focus:ring-rose-500/10 outline-none shadow-sm"
+                                                    />
+                                                </div>
+                                                <p className="text-[7px] font-bold text-slate-400 uppercase tracking-widest px-2 group-hover:text-rose-400 transition-colors">Base Cost: ₹{item.unitCostExcTax.toFixed(2)}</p>
                                             </div>
-                                            <div className="col-span-2 text-right">
-                                                <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1 italic">Line Valuation</p>
-                                                <p className="text-2xl font-black text-slate-900 italic tracking-tighter group-hover:text-emerald-600 transition-colors">
-                                                    ₹{(item.quantity * item.unitCost).toFixed(2)}
-                                                </p>
+
+                                            <div className="col-span-2 space-y-2">
+                                                <div className="flex items-center justify-between">
+                                                    <label className="text-[9px] font-black text-blue-600 uppercase tracking-widest ml-1 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100 italic">Sell Price (Mkt)</label>
+                                                    <div className="flex items-center gap-1 group/sync relative">
+                                                        <input 
+                                                            type="checkbox"
+                                                            checked={item.syncPrice}
+                                                            onChange={(e) => updateItem(index, 'syncPrice', e.target.checked)}
+                                                            className="w-4 h-4 accent-blue-600 rounded cursor-pointer transition-transform active:scale-125"
+                                                        />
+                                                        <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest">Auto-Sync</span>
+                                                    </div>
+                                                </div>
+                                                <div className="relative">
+                                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-black text-blue-300 italic">₹</span>
+                                                    <input
+                                                        type="number"
+                                                        step="0.01"
+                                                        value={item.newPrice}
+                                                        onChange={(e) => updateItem(index, 'newPrice', parseFloat(e.target.value))}
+                                                        className={`w-full pl-7 pr-4 py-5 bg-white border border-slate-100 rounded-2xl font-black text-sm italic focus:ring-2 focus:ring-blue-500/10 outline-none transition-all ${item.syncPrice ? 'text-blue-700 ring-2 ring-blue-500/20 shadow-lg shadow-blue-500/10' : 'text-slate-900 shadow-sm'}`}
+                                                        placeholder="0.00"
+                                                    />
+                                                </div>
+                                                <p className="text-[7px] font-bold text-slate-400 uppercase tracking-widest px-2">Inventory Sync: {item.syncPrice ? 'ACTIVE' : 'OFF'}</p>
                                             </div>
-                                            <div className="col-span-1 text-right">
+
+                                            <div className="col-span-2 space-y-2">
+                                                <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200">Volume (Qty)</label>
+                                                <div className="relative">
+                                                    <Package className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
+                                                    <input
+                                                        type="number"
+                                                        required
+                                                        value={item.quantity}
+                                                        onChange={(e) => updateItem(index, 'quantity', parseInt(e.target.value))}
+                                                        className="w-full bg-slate-50 border border-slate-100 rounded-2xl pl-11 pr-4 py-5 font-black text-sm text-slate-900 focus:ring-2 focus:ring-blue-500/10 outline-none shadow-sm italic"
+                                                        placeholder="1"
+                                                    />
+                                                </div>
+                                                <p className="text-[7px] font-bold text-slate-400 uppercase tracking-widest px-2 italic text-center">Batch Intake Unit</p>
+                                            </div>
+
+                                            <div className="col-span-1 flex justify-center pb-4">
                                                 <button
                                                     type="button"
                                                     onClick={() => removeItem(index)}
-                                                    className="p-3 text-gray-300 hover:text-red-500 transition-colors"
+                                                    className="p-4 bg-slate-50 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-2xl transition-all border border-transparent hover:border-red-100 shadow-sm animate-in fade-in"
                                                 >
                                                     <Trash2 className="w-5 h-5" />
                                                 </button>
@@ -806,14 +976,14 @@ export default function PurchasesClient() {
                                             <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.3em] mb-1 italic">Cumulative Ledger Value</p>
                                             <div className="text-7xl font-black text-slate-950 italic tracking-tighter flex items-center gap-6">
                                                 <span className="text-blue-600 NOT-italic font-black">₹</span>
-                                                {totalAmount.toLocaleString(undefined, { minimumFractionDigits: 0 })}
+                                                {calculateTotal().toLocaleString(undefined, { minimumFractionDigits: 0 })}
                                             </div>
                                         </div>
                                         <div className="w-px h-16 bg-slate-200" />
                                         <div className="flex flex-col">
                                             <span className="text-[10px] font-black text-rose-500 uppercase tracking-widest mb-1">LIABILITY DUE</span>
                                             <p className="text-5xl font-black text-rose-600 italic tracking-tighter">
-                                                ₹{(totalAmount - (amountPaid || 0)).toLocaleString(undefined, { minimumFractionDigits: 0 })}
+                                                ₹{(calculateTotal() - (amountPaid || 0)).toLocaleString(undefined, { minimumFractionDigits: 0 })}
                                             </p>
                                         </div>
                                     </div>
@@ -963,6 +1133,36 @@ export default function PurchasesClient() {
                                 <button type="submit" disabled={submitting} className="flex-[2] py-6 bg-rose-600 hover:bg-rose-700 text-white rounded-3xl font-black text-xs uppercase tracking-widest shadow-xl shadow-rose-200 transition-all active:scale-95">Verify & Reverse Stock</button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* New Product Strategy Modal */}
+            {isProductModalOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 animate-in fade-in duration-300">
+                    <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" onClick={() => setIsProductModalOpen(false)} />
+                    <div className="bg-white w-full max-w-6xl rounded-[3rem] shadow-2xl relative z-10 overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col font-sans max-h-[95vh]">
+                        <div className="px-12 py-8 border-b border-gray-100 flex justify-between items-center bg-emerald-50/30">
+                            <div>
+                                <h2 className="text-2xl font-black text-slate-950 tracking-tighter italic uppercase">
+                                    Strategic <span className="text-emerald-600 NOT-italic font-black">Asset Construction</span>
+                                </h2>
+                                <p className="text-[10px] font-black text-emerald-600/60 uppercase tracking-widest mt-1">Real-time procurement registry ingestion</p>
+                            </div>
+                            <button 
+                                onClick={() => setIsProductModalOpen(false)} 
+                                className="w-12 h-12 bg-white border border-slate-100 text-slate-400 hover:text-rose-500 rounded-2xl transition-all shadow-sm flex items-center justify-center group"
+                            >
+                                <X className="w-6 h-6 group-hover:rotate-90 transition-all duration-500" />
+                            </button>
+                        </div>
+                        <div className="flex-1 overflow-y-auto p-12 custom-scrollbar">
+                            <ProductForm 
+                                isModal={true}
+                                onSave={handleNewProductSave}
+                                onCancel={() => setIsProductModalOpen(false)}
+                            />
+                        </div>
                     </div>
                 </div>
             )}

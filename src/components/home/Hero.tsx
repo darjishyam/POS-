@@ -5,8 +5,8 @@ import Link from 'next/link'
 import { ArrowRight, LayoutGrid } from 'lucide-react'
 
 export function Hero() {
-    const { user } = useAuth()
-    const isAdmin = user?.email === "professorshyam123@gmail.com"
+    const { user, role } = useAuth()
+    const isAdmin = role === "admin"
 
     return (
         <div className="py-24 md:py-32 flex flex-col items-center text-center">

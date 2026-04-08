@@ -26,6 +26,8 @@ export async function PATCH(
         const updateData: any = { ...productInfo };
         if (updateData.brandId === "") updateData.brandId = null;
         if (updateData.unitId === "") updateData.unitId = null;
+        if (updateData.categoryId === "") updateData.categoryId = null;
+        if (updateData.taxId === "") updateData.taxId = null;
 
         const product = await prisma.product.update({
             where: { id },

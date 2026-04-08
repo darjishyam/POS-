@@ -47,11 +47,16 @@ export async function POST(request: Request) {
                     referenceNumber,
                     status,
                     locationId,
+                    taxAmount: body.taxAmount || 0,
                     items: {
                         create: items.map((item: any) => ({
                             productId: item.productId,
-                            quantity: item.quantity,
-                            unitCost: item.unitCost
+                            quantity: parseFloat(item.quantity.toString()),
+                            unitCost: parseFloat(item.unitCost?.toString() || '0'),
+                            unitCostExcTax: parseFloat(item.unitCostExcTax?.toString() || item.unitCost?.toString() || '0'),
+                            unitCostIncTax: parseFloat(item.unitCostIncTax?.toString() || item.unitCost?.toString() || '0'),
+                            taxId: item.taxId || null,
+                            taxType: item.taxType || 'EXCLUSIVE'
                         }))
                     }
                 }

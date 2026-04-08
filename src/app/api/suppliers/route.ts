@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { supplierSchema } from '@/lib/validations'
 
+type SupplierPurchase = {
+    totalAmount: number
+}
+
 export async function GET() {
     try {
         const suppliers = await prisma.supplier.findMany({
@@ -16,9 +20,9 @@ export async function GET() {
             orderBy: { createdAt: 'desc' }
         })
 
-        const formattedSuppliers = suppliers.map((s: any) => ({
+        const formattedSuppliers = suppliers.map((s) => ({
             ...s,
-            totalPurchaseVolume: s.purchases.reduce((sum: number, p: any) => sum + p.totalAmount, 0)
+            totalPurchaseVolume: (s.purchases as SupplierPurchase[]).reduce((sum, p) => sum + p.totalAmount, 0)
         }))
 
         return NextResponse.json(formattedSuppliers)
@@ -46,9 +50,9 @@ export async function POST(request: Request) {
         })
 
         return NextResponse.json(supplier)
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Supplier POST Error:', error)
-        if (error.code === 'P2002') {
+        if (typeof error === 'object' && error && 'code' in error && (error as { code?: string }).code === 'P2002') {
             return NextResponse.json({ error: 'Email or Phone already exists' }, { status: 400 })
         }
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })

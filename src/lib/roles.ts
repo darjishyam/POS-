@@ -10,10 +10,9 @@ export async function checkRole(role: Role) {
     try {
         const decodedClaims = await adminAuth.verifySessionCookie(sessionCookie, true);
         
-        // Permanent Admin Rule for the primary operator (Case-Insensitive)
-        if (decodedClaims.email?.toLowerCase() === "professorshyam123@gmail.com") return true;
-        
-        return !!decodedClaims.role; 
+        // Dynamic Role Validation (Case-Insensitive)
+        const userRole = (decodedClaims.role as string)?.toLowerCase();
+        return userRole === role.toLowerCase(); 
     } catch (error) {
         return false;
     }
@@ -26,10 +25,11 @@ export async function getRole() {
     try {
         const decodedClaims = await adminAuth.verifySessionCookie(sessionCookie, true);
         
-        // Permanent Admin Rule for the primary operator (Case-Insensitive)
-        if (decodedClaims.email?.toLowerCase() === "professorshyam123@gmail.com") return "admin";
+        // Extract Dynamic Role from Claims
+        const userRole = (decodedClaims.role as string)?.toLowerCase();
+        if (userRole === "admin") return "admin";
         
-        return (decodedClaims.role as Role) || "user"; 
+        return "user" as Role; 
     } catch (error) {
         return "user" as Role;
     }

@@ -19,41 +19,39 @@ model User {
   orders     Order[]
 }
 
-model OtpCode {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  code      String
-  createdAt DateTime @default(now())
-  expiresAt DateTime
-}
-
 model Product {
-  id              String               @id @default(cuid())
-  name            String
-  description     String?
-  price           Float
-  sku             String               @unique
-  image           String?              @default("https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&q=80&w=200")
-  stock           Int                  @default(0)
-  categoryId      String?
-  brandId         String?
-  unitId          String?
-  barcodeType     String?              @default("CODE128")
-  alertQuantity   Int                  @default(5)
-  manageStock     Boolean              @default(true)
-  brochureUrl     String?
-  createdAt       DateTime             @default(now())
-  updatedAt       DateTime             @updatedAt
-  locationStocks  LocationStock[]
-  items           OrderItem[]
-  brand           Brand?               @relation(fields: [brandId], references: [id])
-  category        Category?            @relation(fields: [categoryId], references: [id])
-  unit            Unit?                @relation(fields: [unitId], references: [id])
-  purchases       PurchaseItem[]
-  purchaseReturns PurchaseReturnItem[]
-  returns         SalesReturnItem[]
-  shipmentItems   ShipmentItem[]
-  transferItems   StockTransferItem[]
+  id                  String               @id @default(cuid())
+  name                String
+  description         String?
+  price               Float
+  sku                 String               @unique
+  image               String?              @default("https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&q=80&w=200")
+  stock               Int                  @default(0)
+  categoryId          String?
+  brandId             String?
+  unitId              String?
+  barcodeType         String?              @default("CODE128")
+  alertQuantity       Int                  @default(5)
+  manageStock         Boolean              @default(true)
+  brochureUrl         String?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  margin              Float                @default(25.0)
+  purchasePriceExcTax Float                @default(0)
+  purchasePriceIncTax Float                @default(0)
+  taxId               String?
+  taxType             String               @default("EXCLUSIVE")
+  locationStocks      LocationStock[]
+  items               OrderItem[]
+  brand               Brand?               @relation(fields: [brandId], references: [id])
+  category            Category?            @relation(fields: [categoryId], references: [id])
+  tax                 Tax?                 @relation(fields: [taxId], references: [id])
+  unit                Unit?                @relation(fields: [unitId], references: [id])
+  purchases           PurchaseItem[]
+  purchaseReturns     PurchaseReturnItem[]
+  returns             SalesReturnItem[]
+  shipmentItems       ShipmentItem[]
+  transferItems       StockTransferItem[]
 }
 
 model Brand {
@@ -109,24 +107,31 @@ model Customer {
 }
 
 model Order {
-  id             String        @id @default(cuid())
-  totalAmount    Float
-  taxAmount      Float         @default(0)
-  discountAmount Float         @default(0)
-  paymentMethod  String        @default("CASH")
-  upiId          String?
-  status         String        @default("COMPLETED")
-  userId         String?
-  customerId     String?
-  agentId        String?
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
-  agent          Agent?        @relation(fields: [agentId], references: [id])
-  customer       Customer?     @relation(fields: [customerId], references: [id])
-  user           User?         @relation(fields: [userId], references: [id])
-  items          OrderItem[]
-  returns        SalesReturn[]
-  shipments      Shipment[]
+  id              String         @id @default(cuid())
+  totalAmount     Float
+  taxAmount       Float          @default(0)
+  discountAmount  Float          @default(0)
+  paymentMethod   String         @default("CASH")
+  upiId           String?
+  status          String         @default("COMPLETED")
+  userId          String?
+  customerId      String?
+  agentId         String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  isDelivery      Boolean        @default(false)
+  shippingAddress String?
+  shippingCity    String?
+  shippingCost    Float          @default(0)
+  shippingName    String?
+  shippingPhone   String?
+  agent           Agent?         @relation(fields: [agentId], references: [id])
+  customer        Customer?      @relation(fields: [customerId], references: [id])
+  user            User?          @relation(fields: [userId], references: [id])
+  items           OrderItem[]
+  payments        OrderPayment[]
+  returns         SalesReturn[]
+  shipments       Shipment[]
 }
 
 model SalesReturn {
@@ -199,6 +204,16 @@ model OrderItem {
   product   Product  @relation(fields: [productId], references: [id])
 }
 
+model OrderPayment {
+  id        String   @id @default(cuid())
+  amount    Float
+  method    String   @default("CASH")
+  orderId   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
+
 model Supplier {
   id            String     @id @default(cuid())
   name          String
@@ -223,6 +238,7 @@ model Purchase {
   status          String            @default("RECEIVED")
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
+  taxAmount       Float             @default(0)
   location        Location?         @relation(fields: [locationId], references: [id])
   supplier        Supplier          @relation(fields: [supplierId], references: [id])
   items           PurchaseItem[]
@@ -263,15 +279,20 @@ model PurchaseReturnItem {
 }
 
 model PurchaseItem {
-  id         String   @id @default(cuid())
-  purchaseId String
-  productId  String
-  quantity   Int
-  unitCost   Float
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  product    Product  @relation(fields: [productId], references: [id])
-  purchase   Purchase @relation(fields: [purchaseId], references: [id])
+  id             String   @id @default(cuid())
+  purchaseId     String
+  productId      String
+  quantity       Int
+  unitCost       Float
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  taxId          String?
+  taxType        String   @default("EXCLUSIVE")
+  unitCostExcTax Float    @default(0)
+  unitCostIncTax Float    @default(0)
+  product        Product  @relation(fields: [productId], references: [id])
+  purchase       Purchase @relation(fields: [purchaseId], references: [id])
+  tax            Tax?     @relation(fields: [taxId], references: [id])
 }
 
 model ExpenseCategory {
@@ -352,4 +373,23 @@ model Setting {
   logo           String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+}
+
+model Tax {
+  id            String         @id @default(cuid())
+  name          String         @unique
+  rate          Float          @default(0)
+  status        Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  products      Product[]
+  purchaseItems PurchaseItem[]
+}
+
+model OtpCode {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  code      String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
 }

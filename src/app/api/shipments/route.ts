@@ -29,7 +29,7 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Missing shipment parameters' }, { status: 400 })
         }
 
-        const shipment = await prisma.$transaction(async (tx) => {
+        const shipment = await prisma.$transaction(async (tx: any) => {
             // 1. Create Shipment Record
             const newShipment = await tx.shipment.create({
                 data: {
@@ -48,8 +48,11 @@ export async function POST(request: Request) {
                 }
             })
 
-            // 2. Optional: If partial shipping is implemented later, we'd adjust order status here.
-            // For now, we assume full shipment.
+            // 2. Automate Order Status Lifecycle: Mark as SHIPPED
+            await tx.order.update({
+                where: { id: orderId },
+                data: { status: 'SHIPPED' }
+            })
             
             return newShipment
         })
@@ -77,6 +80,14 @@ export async function PATCH(request: Request) {
                 deliveredAt: status === 'DELIVERED' ? new Date() : deliveredAt ? new Date(deliveredAt) : null
             }
         })
+
+        // 3. Automate Order Status Lifecycle: Mark as DELIVERED
+        if (status === 'DELIVERED') {
+            await prisma.order.update({
+                where: { id: updatedShipment.orderId },
+                data: { status: 'DELIVERED' }
+            })
+        }
 
         return NextResponse.json(updatedShipment)
     } catch (error: any) {

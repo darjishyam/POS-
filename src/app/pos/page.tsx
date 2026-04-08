@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { toast } from 'react-hot-toast'
 import { useSettings } from '@/context/SettingsContext'
+import { motion, AnimatePresence } from 'framer-motion'
 
 export default function POSPage() {
     const [products, setProducts] = useState<any[]>([])
@@ -20,6 +21,8 @@ export default function POSPage() {
     const [taxAmount, setTaxAmount] = useState<number>(0)
     const [discountAmount, setDiscountAmount] = useState<number>(0)
     const [paymentMethod, setPaymentMethod] = useState<string>('CASH')
+    const [isSplit, setIsSplit] = useState(false)
+    const [payments, setPayments] = useState<{ method: string, amount: number }[]>([])
     const [receipt, setReceipt] = useState<any>(null)
     const { settings } = useSettings()
 
@@ -132,7 +135,8 @@ export default function POSPage() {
                     customerId: selectedCustomerId,
                     taxAmount,
                     discountAmount,
-                    paymentMethod,
+                    paymentMethod: isSplit ? undefined : paymentMethod,
+                    payments: isSplit ? payments : undefined,
                     locationId: selectedLocationId
                 })
             })
@@ -250,35 +254,62 @@ export default function POSPage() {
                     </div>
 
                     {/* Product Grid */}
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xxl:grid-cols-5 gap-6">
-                        {filteredProducts.map(product => (
-                            <button
-                                key={product.id}
-                                onClick={() => addToCart(product)}
-                                className="bg-white rounded-[2rem] shadow-sm hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 text-left border border-slate-100 group relative overflow-hidden"
-                            >
-                                <div className="aspect-square w-full overflow-hidden bg-slate-50 relative">
-                                    <img
-                                        src={product.image || 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&q=80&w=200'}
-                                        alt={product.name}
-                                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                                    />
-                                    <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-md px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest text-slate-900 border border-slate-100 shadow-sm">
-                                        {product.stock} IN STOCK
+                    <motion.div 
+                        layout
+                        className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xxl:grid-cols-5 gap-6"
+                    >
+                        <AnimatePresence mode='popLayout'>
+                            {filteredProducts.map((product, idx) => (
+                                <motion.button
+                                    layout
+                                    initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                                    exit={{ opacity: 0, scale: 0.9 }}
+                                    transition={{ 
+                                        type: "spring", 
+                                        stiffness: 300, 
+                                        damping: 25,
+                                        delay: Math.min(idx * 0.05, 0.5) 
+                                    }}
+                                    key={product.id}
+                                    onClick={() => addToCart(product)}
+                                    whileHover={{ y: -5, scale: 1.02 }}
+                                    whileTap={{ scale: 0.98 }}
+                                    className="bg-white rounded-[2rem] shadow-sm hover:shadow-2xl transition-all duration-300 text-left border border-slate-100 group relative overflow-hidden"
+                                >
+                                    <div className="aspect-square w-full overflow-hidden bg-slate-50 relative">
+                                        <img
+                                            src={product.image || 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&q=80&w=400'}
+                                            alt={product.name}
+                                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                                        />
+                                        <motion.div 
+                                            initial={{ x: 20, opacity: 0 }}
+                                            animate={{ x: 0, opacity: 1 }}
+                                            className="absolute top-4 right-4 bg-white/90 backdrop-blur-md px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest text-slate-900 border border-slate-100 shadow-sm"
+                                        >
+                                            {product.stock} IN STOCK
+                                        </motion.div>
                                     </div>
-                                </div>
-                                <div className="p-5">
-                                    <h3 className="font-black text-slate-900 text-lg leading-tight mb-2 line-clamp-2 min-h-[3.5rem]">{product.name}</h3>
-                                    <div className="flex justify-between items-center">
-                                        <div className="text-2xl font-black text-emerald-500 font-mono tracking-tighter">{settings.currencySymbol}{product.price.toFixed(2)}</div>
-                                        <div className="w-10 h-10 bg-slate-50 text-slate-300 rounded-xl flex items-center justify-center group-hover:bg-emerald-500 group-hover:text-white transition-colors shadow-inner">
-                                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" /></svg>
+                                    <div className="p-5">
+                                        <h3 className="font-black text-slate-900 text-lg leading-tight mb-2 line-clamp-2 min-h-[3.5rem]">{product.name}</h3>
+                                        <div className="flex justify-between items-center">
+                                            <motion.div 
+                                                initial={{ scale: 0.8 }}
+                                                animate={{ scale: 1 }}
+                                                className="text-2xl font-black text-emerald-500 font-mono tracking-tighter"
+                                            >
+                                                {settings.currencySymbol}{product.price.toFixed(2)}
+                                            </motion.div>
+                                            <div className="w-10 h-10 bg-slate-50 text-slate-300 rounded-xl flex items-center justify-center group-hover:bg-emerald-500 group-hover:text-white transition-colors shadow-inner">
+                                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" /></svg>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            </button>
-                        ))}
-                    </div>
+                                </motion.button>
+                            ))}
+                        </AnimatePresence>
+                    </motion.div>
                 </div>
 
                 {/* Right Side: Execution Drawer (Cart) */}
@@ -293,27 +324,41 @@ export default function POSPage() {
                         </div>
                     </div>
 
-                    <div className="flex-1 overflow-y-auto p-6 space-y-6">
-                        {cart.length === 0 ? (
-                            <div className="h-full flex flex-col items-center justify-center text-slate-200 space-y-4 opacity-50">
-                                <svg className="w-20 h-20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" /></svg>
-                                <p className="font-black uppercase tracking-widest text-xs">Awaiting Input</p>
-                            </div>
-                        ) : (
-                            cart.map(item => (
-                                <div key={item.id} className="flex justify-between items-center group animate-in slide-in-from-right duration-300">
-                                    <div className="flex-1 pr-6">
-                                        <div className="font-black text-slate-900 text-sm leading-tight mb-1 uppercase tracking-tight">{item.name}</div>
-                                        <div className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">{settings.currencySymbol}{item.price.toFixed(2)} × {item.quantity} = {settings.currencySymbol}{(item.price * item.quantity).toFixed(2)}</div>
-                                    </div>
-                                    <div className="flex items-center gap-6">
-                                        <button onClick={() => removeFromCart(item.id)} className="text-slate-200 hover:text-rose-500 transition-colors">
-                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                        </button>
-                                    </div>
-                                </div>
-                            ))
-                        )}
+                    <div className="flex-1 overflow-y-auto p-6 space-y-6 scroll-smooth thin-scrollbar">
+                        <AnimatePresence mode='popLayout'>
+                            {cart.length === 0 ? (
+                                <motion.div 
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 0.5 }}
+                                    exit={{ opacity: 0 }}
+                                    className="h-full flex flex-col items-center justify-center text-slate-200 space-y-4"
+                                >
+                                    <svg className="w-20 h-20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" /></svg>
+                                    <p className="font-black uppercase tracking-widest text-xs">Awaiting Input</p>
+                                </motion.div>
+                            ) : (
+                                cart.map(item => (
+                                    <motion.div 
+                                        layout
+                                        initial={{ opacity: 0, x: 20 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        exit={{ opacity: 0, x: -20 }}
+                                        key={item.id} 
+                                        className="flex justify-between items-center group"
+                                    >
+                                        <div className="flex-1 pr-6">
+                                            <div className="font-black text-slate-900 text-sm leading-tight mb-1 uppercase tracking-tight">{item.name}</div>
+                                            <div className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">{settings.currencySymbol}{item.price.toFixed(2)} × {item.quantity} = {settings.currencySymbol}{(item.price * item.quantity).toFixed(2)}</div>
+                                        </div>
+                                        <div className="flex items-center gap-6">
+                                            <button onClick={() => removeFromCart(item.id)} className="text-slate-200 hover:text-rose-500 transition-colors">
+                                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                            </button>
+                                        </div>
+                                    </motion.div>
+                                ))
+                            )}
+                        </AnimatePresence>
                     </div>
 
                     <div className="p-8 bg-slate-50/80 border-t border-slate-100 space-y-4">
@@ -364,28 +409,112 @@ export default function POSPage() {
                             </div>
 
                             <div className="space-y-1">
-                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Payment Method</label>
-                                <div className="grid grid-cols-3 gap-2">
-                                    {['CASH', 'CARD', 'UPI'].map(method => (
-                                        <button
-                                            key={method}
-                                            onClick={() => setPaymentMethod(method)}
-                                            className={`py-2 rounded-xl text-[10px] font-black tracking-widest transition-all ${paymentMethod === method ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-100' : 'bg-white text-slate-400 border border-slate-100 hover:bg-slate-50'}`}
-                                        >
-                                            {method}
-                                        </button>
-                                    ))}
+                                <div className="flex justify-between items-center px-1">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Payment Strategy</label>
+                                    <button 
+                                        onClick={() => {
+                                            if (!isSplit) {
+                                                setPayments([{ method: paymentMethod, amount: total }])
+                                            }
+                                            setIsSplit(!isSplit)
+                                        }}
+                                        className={`text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full border transition-all ${isSplit ? 'bg-emerald-500 text-white border-emerald-500' : 'text-slate-400 border-slate-200 hover:border-slate-400'}`}
+                                    >
+                                        {isSplit ? 'Split Active' : 'Enable Split'}
+                                    </button>
                                 </div>
+
+                                {!isSplit ? (
+                                    <div className="grid grid-cols-3 gap-2">
+                                        {['CASH', 'CARD', 'UPI'].map(method => (
+                                            <motion.button
+                                                whileHover={{ scale: 1.05 }}
+                                                whileTap={{ scale: 0.95 }}
+                                                key={method}
+                                                onClick={() => setPaymentMethod(method)}
+                                                className={`py-2 rounded-xl text-[10px] font-black tracking-widest transition-all ${paymentMethod === method ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-100' : 'bg-white text-slate-400 border border-slate-100 hover:bg-slate-50'}`}
+                                            >
+                                                {method}
+                                            </motion.button>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <AnimatePresence>
+                                        <motion.div 
+                                            initial={{ opacity: 0, height: 0 }}
+                                            animate={{ opacity: 1, height: 'auto' }}
+                                            exit={{ opacity: 0, height: 0 }}
+                                            className="space-y-3 bg-slate-50 p-4 rounded-2xl border border-slate-100 overflow-hidden"
+                                        >
+                                            {payments.map((p, idx) => (
+                                                <motion.div 
+                                                    layout
+                                                    initial={{ x: 20, opacity: 0 }}
+                                                    animate={{ x: 0, opacity: 1 }}
+                                                    key={idx} 
+                                                    className="flex items-center gap-2"
+                                                >
+                                                    <select 
+                                                        className="bg-white border border-slate-200 rounded-lg text-[10px] font-black p-2 outline-none cursor-pointer"
+                                                        value={p.method}
+                                                        onChange={(e) => {
+                                                            const newPayments = [...payments]
+                                                            newPayments[idx].method = e.target.value
+                                                            setPayments(newPayments)
+                                                        }}
+                                                    >
+                                                        {['CASH', 'CARD', 'UPI'].map(m => <option key={m} value={m}>{m}</option>)}
+                                                    </select>
+                                                    <input 
+                                                        type="number"
+                                                        className="flex-1 bg-white border border-slate-200 rounded-lg text-[10px] font-black p-2 outline-none text-right placeholder:text-slate-200"
+                                                        value={p.amount || ''}
+                                                        placeholder="0.00"
+                                                        onChange={(e) => {
+                                                            const newPayments = [...payments]
+                                                            newPayments[idx].amount = Number(e.target.value)
+                                                            setPayments(newPayments)
+                                                        }}
+                                                    />
+                                                    {payments.length > 1 && (
+                                                        <button 
+                                                            onClick={() => setPayments(payments.filter((_, i) => i !== idx))}
+                                                            className="text-rose-400 hover:text-rose-600 p-1 transition-colors"
+                                                        >
+                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
+                                                        </button>
+                                                    )}
+                                                </motion.div>
+                                            ))}
+                                            <motion.button 
+                                                whileHover={{ scale: 1.02 }}
+                                                whileTap={{ scale: 0.98 }}
+                                                onClick={() => setPayments([...payments, { method: 'CASH', amount: 0 }])}
+                                                className="w-full py-2 border-2 border-dashed border-slate-200 rounded-xl text-[8px] font-black text-slate-400 uppercase tracking-widest hover:border-emerald-300 hover:text-emerald-500 transition-all"
+                                            >
+                                                + Add Payment Channel
+                                            </motion.button>
+                                            <div className="pt-2 border-t border-slate-200 flex justify-between items-center font-black text-[9px] uppercase tracking-widest">
+                                                <span className={Math.abs(payments.reduce((s, p) => s + p.amount, 0) - total) < 0.01 ? 'text-emerald-500' : 'text-rose-500'}>
+                                                    Total Split: {settings.currencySymbol}{payments.reduce((s, p) => s + p.amount, 0).toFixed(2)}
+                                                </span>
+                                                <span className="text-slate-400 italic">Target: {settings.currencySymbol}{total.toFixed(2)}</span>
+                                            </div>
+                                        </motion.div>
+                                    </AnimatePresence>
+                                )}
                             </div>
                         </div>
 
-                        <button
+                        <motion.button
+                            whileHover={{ scale: 1.02, backgroundColor: '#10b981' }}
+                            whileTap={{ scale: 0.98 }}
                             onClick={handleCheckout}
-                            disabled={isProcessing || cart.length === 0}
-                            className={`w-full py-5 rounded-[2rem] font-black text-lg text-white shadow-2xl transition-all active:scale-95 ${isProcessing || cart.length === 0 ? 'bg-slate-300 shadow-none grayscale opacity-50 cursor-not-allowed' : 'bg-emerald-500 hover:bg-emerald-600 shadow-emerald-200'}`}
+                            disabled={isProcessing || cart.length === 0 || (isSplit && Math.abs(payments.reduce((s, p) => s + p.amount, 0) - total) > 0.01)}
+                            className={`w-full py-5 rounded-[2rem] font-black text-lg text-white shadow-2xl transition-all active:scale-95 ${isProcessing || cart.length === 0 || (isSplit && Math.abs(payments.reduce((s, p) => s + p.amount, 0) - total) > 0.01) ? 'bg-slate-300 shadow-none grayscale opacity-50 cursor-not-allowed' : 'bg-emerald-500 hover:bg-emerald-600 shadow-emerald-200'}`}
                         >
                             {isProcessing ? 'SYNCHRONIZING...' : 'SWIPE TO EXECUTE'}
-                        </button>
+                        </motion.button>
                     </div>
                 </div>
             </main>
@@ -493,9 +622,25 @@ export default function POSPage() {
                             </div>
 
                             <div className="flex justify-between items-center pt-2">
-                                <span className="text-[8px] font-bold text-slate-300 uppercase tracking-widest">Execution via {receipt.paymentMethod}</span>
+                                <span className="text-[8px] font-bold text-slate-300 uppercase tracking-widest">
+                                    {receipt.payments && receipt.payments.length > 1 
+                                        ? `Split: ${receipt.payments.map((p: any) => `${p.method}`).join(' + ')}`
+                                        : `Execution via ${receipt.paymentMethod}`}
+                                </span>
                                 <span className="text-[8px] font-bold text-slate-300 uppercase tracking-widest">{new Date(receipt.createdAt).toLocaleString()}</span>
                             </div>
+
+                            {receipt.payments && receipt.payments.length > 1 && (
+                                <div className="mt-4 pt-4 border-t border-slate-50 space-y-1">
+                                    <p className="text-[7px] font-black text-slate-300 uppercase tracking-widest mb-2">Payment Breakdown</p>
+                                    {receipt.payments.map((p: any, i: number) => (
+                                        <div key={i} className="flex justify-between text-[9px] font-black text-slate-500 uppercase italic">
+                                            <span>{p.method}</span>
+                                            <span>{settings.currencySymbol}{p.amount.toFixed(2)}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
 
                         {/* Receipt Footer */}

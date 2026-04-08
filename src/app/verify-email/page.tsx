@@ -8,7 +8,7 @@ import Link from 'next/link'
 import toast from 'react-hot-toast'
 
 export default function VerifyEmailPage() {
-    const { user, sendOTP, refreshUser, logout } = useAuth()
+    const { user, role, sendVerificationEmail, refreshUser, logout } = useAuth()
     const [verifying, setVerifying] = useState(false)
     const [resending, setResending] = useState(false)
     const router = useRouter()
@@ -17,13 +17,13 @@ export default function VerifyEmailPage() {
         if (!user) {
             router.push('/sign-in')
         } else if (user.emailVerified) {
-            if (user.email === "professorshyam123@gmail.com") {
+            if (role === "admin") {
                 router.push('/dashboard')
             } else {
                 router.push('/')
             }
         }
-    }, [user, router])
+    }, [user, role, router])
 
     const handleRefresh = async () => {
         setVerifying(true)
@@ -31,7 +31,7 @@ export default function VerifyEmailPage() {
             await refreshUser()
             if (user?.emailVerified) {
                 toast.success("Identity Signature Authenticated.")
-                if (user?.email === "professorshyam123@gmail.com") {
+                if (role === "admin") {
                     router.push('/dashboard')
                 } else {
                     router.push('/')
@@ -49,7 +49,7 @@ export default function VerifyEmailPage() {
     const handleResend = async () => {
         setResending(true)
         try {
-            await sendOTP()
+            await sendVerificationEmail()
             toast.success("New Verification Link Dispatched.")
         } catch (error) {
             toast.error("Dispatched Protocol Failed")

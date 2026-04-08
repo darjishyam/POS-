@@ -1,6 +1,6 @@
 'use client'
 
-import { X, ShoppingBag, CreditCard, Banknote, Landmark, Calendar, User, Zap, ArrowLeft, Printer, Share2, Check } from 'lucide-react'
+import { ShoppingBag, CreditCard, Banknote, Landmark, Zap, ArrowLeft, Printer, Share2, Check } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 
@@ -10,8 +10,35 @@ interface TransactionDetailsProps {
     currencySymbol: string
 }
 
+type TransactionItem = {
+    id: string
+    quantity: number
+    price?: number
+    unitCost?: number
+    product?: {
+        name?: string
+        image?: string
+    }
+}
+
+type Transaction = {
+    id: string
+    createdAt: string
+    totalAmount: number
+    discountAmount?: number
+    taxAmount?: number
+    paymentMethod?: string
+    status?: string
+    paymentStatus?: string
+    items?: TransactionItem[]
+    supplier?: { name?: string }
+    customer?: { name?: string }
+    location?: { name?: string; type?: string }
+    error?: string
+}
+
 export default function TransactionDetails({ transactionId, type, currencySymbol }: TransactionDetailsProps) {
-    const [transaction, setTransaction] = useState<any>(null)
+    const [transaction, setTransaction] = useState<Transaction | null>(null)
     const [loading, setLoading] = useState(true)
     const [dispatchStatus, setDispatchStatus] = useState<'idle' | 'copied'>('idle')
 
@@ -24,7 +51,7 @@ export default function TransactionDetails({ transactionId, type, currencySymbol
         setTimeout(() => setDispatchStatus('idle'), 2000)
 
         // Automated WhatsApp Dispatch for Sales
-        if (type === 'SALE') {
+        if (type === 'SALE' && transaction) {
             const text = `Hello! View your digital record for transaction #${transaction.id.slice(-8).toUpperCase()} here: ${receiptUrl}`
             window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
         }
@@ -36,11 +63,11 @@ export default function TransactionDetails({ transactionId, type, currencySymbol
         fetch(endpoint)
             .then(res => res.json())
             .then(data => {
-                setTransaction(data)
+                setTransaction(data as Transaction)
                 setLoading(false)
             })
-            .catch(err => {
-                console.error(err)
+            .catch(error => {
+                console.error(error)
                 setLoading(false)
             })
     }, [transactionId, type])
@@ -99,6 +126,15 @@ export default function TransactionDetails({ transactionId, type, currencySymbol
                     </div>
 
                     <div className="flex gap-4 no-print">
+                        {type === 'PURCHASE' && (
+                            <Link
+                                href={`/dashboard/stock-transfers?fromPurchaseId=${encodeURIComponent(transactionId)}`}
+                                className="flex items-center gap-3 px-8 py-4 bg-emerald-600 text-white rounded-2xl text-[10px] font-black hover:bg-emerald-500 transition-all shadow-xl uppercase tracking-widest italic group"
+                            >
+                                <ShoppingBag className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                                Create Stock Transfer
+                            </Link>
+                        )}
                         <button 
                             onClick={() => window.print()}
                             className="flex items-center gap-3 px-8 py-4 bg-white border border-slate-200 rounded-2xl text-[10px] font-black text-slate-600 hover:bg-slate-50 hover:text-blue-600 transition-all shadow-sm uppercase tracking-widest italic group"
@@ -158,7 +194,7 @@ export default function TransactionDetails({ transactionId, type, currencySymbol
                             
                             <div className="p-12 space-y-8">
                                 <div className="space-y-4">
-                                    {(transaction.items || []).map((item: any) => (
+                                    {(transaction.items || []).map((item) => (
                                         <div key={item.id} className="flex items-center justify-between p-8 bg-white hover:bg-slate-50/50 rounded-3xl border border-slate-100 transition-all group">
                                             <div className="flex items-center gap-8">
                                                 <div className="w-20 h-20 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-center overflow-hidden shrink-0 group-hover:border-blue-200 transition-colors">

@@ -41,6 +41,13 @@ export async function POST(request: Request) {
 
         const { supplierId, purchaseCost, ...productInfo } = validation.data
 
+        // Standardize relational identifiers
+        const finalData: any = { ...productInfo };
+        if (finalData.brandId === "") finalData.brandId = null;
+        if (finalData.unitId === "") finalData.unitId = null;
+        if (finalData.categoryId === "") finalData.categoryId = null;
+        if (finalData.taxId === "") finalData.taxId = null;
+
         let product;
 
         // Perform transactional creation if Quick Buy protocol is engaged
@@ -48,7 +55,7 @@ export async function POST(request: Request) {
             product = await prisma.$transaction(async (tx: any) => {
                 // 1. Core Asset Creation
                 const newProduct = await tx.product.create({
-                    data: productInfo
+                    data: finalData
                 });
 
                 // 2. Initializing Vendor Purchase Order (UNPAID)
@@ -75,7 +82,7 @@ export async function POST(request: Request) {
         } else {
             // Standard Isolated Creation
             product = await prisma.product.create({
-                data: productInfo
+                data: finalData
             })
         }
 

@@ -2,9 +2,10 @@
 
 import { useState } from 'react'
 import { useAuth } from '@/context/AuthContext'
-import { ShoppingCart, LayoutGrid, LogOut, User as UserIcon, ArrowRight, Archive } from 'lucide-react'
+import { ShoppingCart, LayoutGrid, ArrowRight, Archive } from 'lucide-react'
 import Link from 'next/link'
 import { useCart } from '@/context/CartContext'
+import { UserProfileDropdown } from './UserProfileDropdown'
 
 export function StoreHeader() {
     const { user, role, loading, logout } = useAuth()
@@ -63,31 +64,12 @@ export function StoreHeader() {
                             </button>
                         </Link>
                     ) : (
-                        <div className="flex items-center gap-3 group/user relative">
+                        <div className="flex items-center gap-3">
                             <Link href="/orders" className="p-3 hover:bg-blue-50 text-slate-300 hover:text-blue-600 rounded-xl transition-all mr-2" title="My Orders">
                                 <Archive className="w-5 h-5" />
                             </Link>
-                            <div className="flex flex-col items-end mr-2">
-                                <p className="text-[10px] font-black text-slate-900 uppercase tracking-widest">{user?.displayName || 'Active Operator'}</p>
-                                <p className="text-[8px] font-bold text-blue-500 uppercase tracking-[0.2em] flex items-center gap-1">
-                                    <span className="w-1 h-1 bg-blue-500 rounded-full animate-ping" />
-                                    Terminal Online
-                                </p>
-                            </div>
-                            <div className="w-12 h-12 rounded-2xl shadow-inner border border-slate-100 overflow-hidden bg-slate-50 flex items-center justify-center">
-                                {user?.photoURL ? (
-                                    <img src={user.photoURL} alt="User" className="w-full h-full object-cover" />
-                                ) : (
-                                    <UserIcon className="w-6 h-6 text-slate-300" />
-                                )}
-                            </div>
-                            <button 
-                                onClick={() => logout()}
-                                className="p-3 hover:bg-red-50 text-slate-300 hover:text-red-500 rounded-xl transition-all"
-                                title="Terminate Session"
-                            >
-                                <LogOut className="w-5 h-5" />
-                            </button>
+                            
+                            <UserProfileDropdown />
                         </div>
                     )}
                 </div>

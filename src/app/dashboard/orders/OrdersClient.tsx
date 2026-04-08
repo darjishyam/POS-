@@ -23,7 +23,11 @@ import {
     RotateCcw,
     X,
     IndianRupee,
-    Download
+    Download,
+    Truck,
+    MapPin,
+    Loader2,
+    Zap
 } from 'lucide-react'
 import Link from 'next/link'
 import * as XLSX from 'xlsx'
@@ -33,6 +37,7 @@ import { toast, Toaster } from 'react-hot-toast'
 import { format } from 'date-fns'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { useCart } from '@/context/CartContext'
+import { motion, AnimatePresence } from 'framer-motion'
 
 interface Order {
     id: string
@@ -44,6 +49,12 @@ interface Order {
     createdAt: string
     items: any[]
     customer?: { name: string }
+    isDelivery?: boolean
+    shippingName?: string
+    shippingAddress?: string
+    shippingCity?: string
+    shippingPhone?: string
+    shippingCost?: number
 }
 
 export default function OrdersClient() {
@@ -61,6 +72,11 @@ export default function OrdersClient() {
     const [returnItems, setReturnItems] = useState<Record<string, number>>({})
     const [returnReason, setReturnReason] = useState('Customer Satisfaction Protocol')
     const [isSubmitting, setIsSubmitting] = useState(false)
+    
+    // Shipment States
+    const [isShipModalOpen, setIsShipModalOpen] = useState(false)
+    const [carrier, setCarrier] = useState('SELF')
+    const [trackingNumber, setTrackingNumber] = useState('')
 
     useEffect(() => {
         fetchOrders()
@@ -87,6 +103,13 @@ export default function OrdersClient() {
         })
         setReturnItems(initialQtys)
         setIsReturnModalOpen(true)
+    }
+
+    const openShipModal = (order: Order) => {
+        setSelectedOrder(order)
+        setCarrier('SELF')
+        setTrackingNumber('')
+        setIsShipModalOpen(true)
     }
 
     const handlePartialReturn = async () => {
@@ -132,20 +155,21 @@ export default function OrdersClient() {
         }
     }
 
-    const handleShip = async (order: Order) => {
-        const carrier = prompt('Enter Carrier (FedEx, UPS, SELF):', 'SELF')
-        if (!carrier) return
-        const trackingNumber = prompt('Enter Tracking Number (Optional):') || ''
+    const handleShip = async () => {
+        if (!selectedOrder) return
+        
+        setIsSubmitting(true)
+        const loadingToast = toast.loading('Synchronizing Logistics Data...')
         
         try {
             const res = await fetch('/api/shipments', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    orderId: order.id,
+                    orderId: selectedOrder.id,
                     carrier,
                     trackingNumber,
-                    items: order.items.map(item => ({
+                    items: selectedOrder.items.map(item => ({
                         productId: item.productId,
                         quantity: item.quantity
                     }))
@@ -153,12 +177,16 @@ export default function OrdersClient() {
             })
 
             if (res.ok) {
-                toast.success('Asset Dispatched: Shipment Profile Created')
+                toast.success('Asset Dispatched: Shipment Profile Created', { id: loadingToast })
+                setIsShipModalOpen(false)
+                fetchOrders()
             } else {
-                toast.error('Dispatch Protocol Failed')
+                toast.error('Dispatch Protocol Failed', { id: loadingToast })
             }
         } catch (err) {
-            toast.error('Sync Error')
+            toast.error('Sync Error', { id: loadingToast })
+        } finally {
+            setIsSubmitting(false)
         }
     }
 
@@ -461,7 +489,7 @@ export default function OrdersClient() {
                                                     )
                                                 )}
 
-                                                {(order.status === 'COMPLETED' || order.status === 'RETURN_REQUESTED' || order.status === 'RETURNED') && (
+                                                {(['COMPLETED', 'SHIPPED', 'DELIVERED', 'RETURN_REQUESTED', 'RETURNED'].includes(order.status)) && (
                                                     <div className="flex gap-2">
                                                         <Link 
                                                             href={`/dashboard/orders/${order.id}`}
@@ -472,7 +500,7 @@ export default function OrdersClient() {
                                                         </Link>
                                                         {order.status === 'COMPLETED' && (
                                                             <button 
-                                                                onClick={() => handleShip(order)}
+                                                                onClick={() => openShipModal(order)}
                                                                 className="p-3 bg-blue-500 text-white rounded-xl hover:bg-blue-400 transition-all shadow-lg shadow-blue-500/10 group/ship active:scale-95 border border-blue-400"
                                                                 title="Ship Asset"
                                                             >
@@ -504,6 +532,125 @@ export default function OrdersClient() {
                     </div>
                 )}
             </div>
+
+            {/* Shipment Logistics Modal */}
+            <AnimatePresence>
+                {isShipModalOpen && selectedOrder && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 pb-24 md:pb-6">
+                        <motion.div 
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => setIsShipModalOpen(false)}
+                            className="absolute inset-0 bg-slate-950/60 backdrop-blur-md"
+                        />
+                        <motion.div 
+                            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                            className="relative w-full max-w-2xl bg-white rounded-[3rem] shadow-2xl overflow-hidden border border-white"
+                        >
+                            <div className="p-10">
+                                <div className="flex justify-between items-start mb-10">
+                                    <div className="space-y-4">
+                                        <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500/10 rounded-full border border-blue-500/20">
+                                            <Truck className="w-3 h-3 text-blue-600" />
+                                            <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest">Logistic Dispatch Matrix</span>
+                                        </div>
+                                        <h3 className="text-4xl font-black text-slate-950 tracking-tighter italic">
+                                            Shipment <span className="text-blue-600 NOT-italic font-black">Provision</span>
+                                        </h3>
+                                    </div>
+                                    <button 
+                                        onClick={() => setIsShipModalOpen(false)}
+                                        className="p-4 bg-slate-50 text-slate-400 hover:text-slate-950 rounded-2xl transition-colors"
+                                    >
+                                        <X className="w-5 h-5" />
+                                    </button>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                                    <div className="space-y-8">
+                                        <div className="p-6 bg-slate-50 rounded-[2rem] border border-slate-100 space-y-4">
+                                            <div className="flex items-center gap-3 text-slate-400">
+                                                <MapPin className="w-4 h-4" />
+                                                <span className="text-[10px] font-black uppercase tracking-widest">Delivery Destination</span>
+                                            </div>
+                                            <div className="space-y-1">
+                                                <p className="font-black text-slate-900 uppercase italic">{selectedOrder.shippingName || selectedOrder.customer?.name || 'GUEST-ENTITY'}</p>
+                                                <p className="text-xs font-bold text-slate-500 leading-relaxed">{selectedOrder.shippingAddress || 'No Address Provided'}</p>
+                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{selectedOrder.shippingCity || 'Global'}</p>
+                                                {selectedOrder.shippingPhone && (
+                                                    <p className="text-sm font-black text-blue-600 mt-2">{selectedOrder.shippingPhone}</p>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-4">
+                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Logistics Carrier</label>
+                                            <div className="grid grid-cols-2 gap-3">
+                                                {['SELF', 'FEDEX', 'DHL', 'BLUE-DART'].map(c => (
+                                                    <button
+                                                        key={c}
+                                                        onClick={() => setCarrier(c)}
+                                                        className={`p-4 rounded-2xl border font-black text-[10px] uppercase tracking-widest transition-all ${
+                                                            carrier === c 
+                                                                ? 'bg-blue-600/10 border-blue-600 text-blue-600 shadow-sm' 
+                                                                : 'bg-white border-slate-100 text-slate-400 hover:border-slate-200'
+                                                        }`}
+                                                    >
+                                                        {c}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-8">
+                                        <div className="space-y-4">
+                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Tracking Signature</label>
+                                            <input 
+                                                type="text"
+                                                placeholder="UUID / HASH / SIGNATURE"
+                                                value={trackingNumber}
+                                                onChange={(e) => setTrackingNumber(e.target.value)}
+                                                className="w-full bg-slate-50 border-none rounded-2xl p-5 text-sm font-bold text-slate-900 placeholder:text-slate-300 outline-none focus:ring-4 focus:ring-blue-500/10 transition-all shadow-inner uppercase"
+                                            />
+                                        </div>
+
+                                        <div className="p-6 bg-blue-50 rounded-[2rem] border border-blue-100 flex items-center justify-between">
+                                            <div>
+                                                <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-1">Items in Batch</p>
+                                                <p className="text-2xl font-black text-blue-900 italic tracking-tighter">{selectedOrder.items.length} Modules</p>
+                                            </div>
+                                            <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm">
+                                                <Package className="w-6 h-6 text-blue-600" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="mt-12">
+                                    <button 
+                                        onClick={handleShip}
+                                        disabled={isSubmitting}
+                                        className="w-full bg-slate-900 hover:bg-blue-600 text-white py-6 rounded-3xl font-black text-xs uppercase tracking-[0.3em] transition-all shadow-xl shadow-slate-900/20 active:scale-[0.98] disabled:opacity-50 disabled:grayscale flex items-center justify-center gap-3"
+                                    >
+                                        {isSubmitting ? (
+                                            <Loader2 className="w-5 h-5 animate-spin" />
+                                        ) : (
+                                            <>
+                                                <Zap className="w-5 h-5 fill-white" />
+                                                Authorize Dispatch
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </div>
     )
 }

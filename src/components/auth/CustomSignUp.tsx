@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   createUserWithEmailAndPassword, 
   updateProfile,
@@ -17,7 +17,8 @@ import {
   ArrowRight,
   Loader2,
   ShieldCheck,
-  Globe
+  Globe,
+  RefreshCw
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -27,8 +28,44 @@ const CustomSignUp = () => {
     const [phone, setPhone] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
+    const [showOtpInput, setShowOtpInput] = useState(false);
+    const [otp, setOtp] = useState('');
+    const [verifying, setVerifying] = useState(false);
+    const [resending, setResending] = useState(false);
+    const [resendTimer, setResendTimer] = useState(0);
     const router = useRouter();
-    const { refreshUser, signInWithGoogle, sendOTP } = useAuth();
+    const { refreshUser, signInWithGoogle } = useAuth();
+
+    useEffect(() => {
+        if (resendTimer > 0) {
+            const timer = setTimeout(() => setResendTimer(resendTimer - 1), 1000);
+            return () => clearTimeout(timer);
+        }
+    }, [resendTimer]);
+
+    const handleResendOtp = async () => {
+        if (resendTimer > 0 || resending) return;
+        
+        setResending(true);
+        try {
+            const res = await fetch('/api/auth/otp/send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email }),
+            });
+            
+            if (res.ok) {
+                setResendTimer(30);
+                toast.success("New code dispatched to your uplink");
+            } else {
+                toast.error("Resend failed. Try again.");
+            }
+        } catch (err) {
+            toast.error("Network error. Try again.");
+        } finally {
+            setResending(false);
+        }
+    };
 
     const handleSocialSignUp = async (strategy: string) => {
         if (strategy !== 'oauth_google') return;
@@ -46,6 +83,33 @@ const CustomSignUp = () => {
         }
     };
 
+    const handleVerifyOtp = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (otp.length !== 6) return toast.error("Verification Signature Incomplete");
+        
+        setVerifying(true);
+        try {
+            const res = await fetch('/api/auth/otp/verify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, code: otp }),
+            });
+
+            if (res.ok) {
+                toast.success("Identity Synchronized. Access Authorized.");
+                router.push('/');
+            } else {
+                const data = await res.json();
+                toast.error(data.error || "Verification Protocol Failure");
+            }
+        } catch (err) {
+            console.error("Verification Error", err);
+            toast.error("Cyber Link Interrupted");
+        } finally {
+            setVerifying(false);
+        }
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
@@ -58,14 +122,27 @@ const CustomSignUp = () => {
                 displayName: fullName
             });
 
-            // Force refresh state and session cookie with the new display name
-            await refreshUser();
-            
-            // Dispatch verification link (OTP type)
-            await sendOTP();
+            // Sync with backend Prisma user
+            await fetch('/api/auth/signup', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    email,
+                    name: fullName,
+                    password, // Hash this server-side in the API
+                })
+            });
 
-            toast.success("Identity Detected. Verification Link Dispatched.");
-            router.push('/verify-email');
+            // Dispatch 6-digit OTP via SMTP (don't refresh user - wait for OTP verification)
+            await fetch('/api/auth/otp/send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email }),
+            });
+
+            setShowOtpInput(true);
+            setResendTimer(30);
+            toast.success("Identity Logged. Check Uplink for 6-digit Key.");
         } catch (err: any) {
             console.error("Sign-Up Error", err);
             toast.error(err.message || "Registration Failed");
@@ -79,6 +156,81 @@ const CustomSignUp = () => {
             <div className="flex flex-col items-center justify-center py-20 animate-pulse">
                 <Loader2 className="w-12 h-12 text-slate-900 animate-spin mb-4" />
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Synching with Matrix...</p>
+            </div>
+        );
+    }
+
+    if (showOtpInput) {
+        return (
+            <div className="animate-in fade-in zoom-in duration-500">
+                <div className="text-center mb-8">
+                    <ShieldCheck className="w-16 h-16 text-emerald-500 mx-auto mb-4" />
+                    <h3 className="text-2xl font-black text-slate-900 tracking-tighter italic uppercase">Identity Check</h3>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2 px-10 leading-relaxed">
+                        A dynamic 6-digit key-phrase has been dispatched to <span className="text-slate-900">{email}</span>
+                    </p>
+                </div>
+
+                <form onSubmit={handleVerifyOtp} className="space-y-6">
+                    <div className="space-y-2 group">
+                        <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest ml-2">Secure Key-Phrase</label>
+                        <input
+                            required
+                            maxLength={6}
+                            type="text"
+                            placeholder="000000"
+                            className="w-full bg-slate-100/50 border-2 border-emerald-100 focus:border-emerald-500 rounded-2xl p-6 text-4xl font-black text-center text-slate-900 tracking-[0.5em] transition-all duration-300 outline-none shadow-inner"
+                            value={otp}
+                            onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+                        />
+                    </div>
+
+                    <button 
+                        type="submit"
+                        disabled={verifying}
+                        className="w-full py-6 bg-emerald-500 text-white rounded-[2rem] text-xs font-black uppercase tracking-[0.4em] flex items-center justify-center gap-4 hover:bg-emerald-600 transition-all shadow-xl shadow-emerald-200 active:scale-[0.98] disabled:opacity-50"
+                    >
+                        {verifying ? (
+                            <Loader2 className="w-5 h-5 animate-spin" />
+                        ) : (
+                            <>
+                                <span>Authorize Login</span>
+                                <ArrowRight className="w-4 h-4" />
+                            </>
+                        )}
+                    </button>
+
+                    <div className="flex flex-col items-center gap-3">
+                        <button 
+                            type="button"
+                            onClick={handleResendOtp}
+                            disabled={resendTimer > 0 || resending}
+                            className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-900 transition-colors disabled:opacity-50"
+                        >
+                            {resending ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : resendTimer > 0 ? (
+                                <>
+                                    <RefreshCw className="w-4 h-4" />
+                                    Resend in {resendTimer}s
+                                </>
+                            ) : (
+                                <>
+                                    <RefreshCw className="w-4 h-4" />
+                                    Resend Code
+                                </>
+                            )}
+                        </button>
+                        
+                        <button 
+                            type="button"
+                            onClick={() => setShowOtpInput(false)}
+                            className="text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-900 transition-colors"
+                        >
+                            Back to Identity Specs
+                        </button>
+                    </div>
+                </form>
             </div>
         );
     }

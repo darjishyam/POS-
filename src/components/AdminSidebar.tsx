@@ -6,10 +6,11 @@ import { usePathname, useSearchParams } from 'next/navigation'
 import { 
     LayoutDashboard, Users, Package, ShoppingCart, ArrowLeftRight, Settings, 
     BarChart3, UserCircle, Receipt, ListFilter, Truck, MapPin, Layers, Upload, 
-    LogOut, ChevronDown, PlusCircle, List, User, ShieldCheck, Zap, TrendingUp,
+    ChevronDown, PlusCircle, List, Zap, TrendingUp,
     Tag, AlertTriangle
 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
+import { UserProfileDropdown } from './UserProfileDropdown'
 
 const menuGroups = [
     {
@@ -44,6 +45,8 @@ const menuGroups = [
             { name: 'Classifications', icon: ListFilter, path: '/dashboard/categories' },
             { name: 'Brand Setup', icon: Tag, path: '/dashboard/inventory/brands' },
             { name: 'Unit Setup', icon: Layers, path: '/dashboard/inventory/units' },
+            { name: 'Locations', icon: MapPin, path: '/dashboard/locations' },
+            { name: 'Stock Transfers', icon: ArrowLeftRight, path: '/dashboard/stock-transfers' },
         ]
     },
     {
@@ -56,7 +59,7 @@ const menuGroups = [
             { name: 'Drafts', icon: Receipt, path: '/dashboard/orders?status=draft' },
             // { name: 'Quotations', icon: ListFilter, path: '/dashboard/orders?status=quotation' },
             { name: 'Sales Returns', icon: ArrowLeftRight, path: '/dashboard/orders/returns' },
-            // { name: 'Shipments', icon: Truck, path: '/dashboard/orders/shipments' },
+            { name: 'Shipments', icon: Truck, path: '/dashboard/orders/shipments' },
         ]
     },
     {
@@ -110,7 +113,7 @@ export default function AdminSidebar() {
                 </div>
                 <div>
                     <h1 className="text-xl font-black text-white tracking-tighter italic leading-none">Matrix <span className="text-indigo-500 NOT-italic font-black">Core</span></h1>
-                    <p className="text-[8px] font-black text-slate-600 uppercase tracking-[0.4em] mt-1 italic">Governance 2.5</p>
+                    <p className="text-[8px] font-black text-slate-600 uppercase tracking-[0.4em] mt-1 italic">Control 2.5</p>
                 </div>
             </div>
 
@@ -191,27 +194,7 @@ export default function AdminSidebar() {
 
             {/* User Profile & Footer Section */}
             <div className="p-6 bg-slate-900/50 border-t border-slate-800 mt-auto">
-                <div className="flex items-center gap-4 mb-6 px-2">
-                    <div className="w-10 h-10 rounded-2xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20 group cursor-pointer relative">
-                        <div className="absolute inset-0 bg-indigo-500/20 blur opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl" />
-                        <User className="w-5 h-5 text-indigo-400 relative z-10" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5">
-                            <p className="text-[10px] font-black text-white uppercase tracking-tight truncate">{(user as any)?.displayName || 'Admin'}</p>
-                            <ShieldCheck className="w-3 h-3 text-emerald-500 flex-shrink-0" />
-                        </div>
-                        <p className="text-[8px] font-black text-slate-600 uppercase tracking-widest truncate">{user?.email || 'MATRIX OPERATOR'}</p>
-                    </div>
-                </div>
-
-                <button 
-                    onClick={() => logout()}
-                    className="w-full flex items-center justify-center gap-3 px-6 py-4 rounded-2xl bg-slate-950 border border-slate-900 text-slate-500 hover:text-rose-500 hover:border-rose-500/20 hover:bg-rose-500/[0.02] transition-all duration-500 group font-black text-[10px] uppercase tracking-widest italic"
-                >
-                    <LogOut className="w-4 h-4 group-hover:rotate-12 transition-transform duration-500" />
-                    Terminate Connection
-                </button>
+                <UserProfileDropdown variant="sidebar" />
             </div>
             
             <style jsx>{`

@@ -1,8 +1,9 @@
 'use client'
 
 import { useAuth } from '@/context/AuthContext'
-import { LogOut, User as UserIcon, ArrowRight } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
 import Link from 'next/link'
+import { UserProfileDropdown } from './UserProfileDropdown'
 
 export default function Header() {
     const { user, loading, logout } = useAuth()
@@ -35,32 +36,8 @@ export default function Header() {
                                 </Link>
                             )}
                         </nav>
-
-                        <div className={`px-4 py-2 rounded-xl border flex items-center gap-2 transition-all ${role === 'admin'
-                                ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600'
-                                : 'bg-blue-500/10 border-blue-500/20 text-blue-600'
-                            }`}>
-                            <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${role === 'admin' ? 'bg-emerald-500' : 'bg-blue-500'}`} />
-                            <span className="text-[10px] font-black uppercase tracking-[0.2em]">
-                                {role === 'admin' ? 'COMMANDER' : 'CUSTOMER'}
-                            </span>
-                        </div>
                         
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl overflow-hidden bg-slate-50 border border-slate-100 flex items-center justify-center">
-                                {user.photoURL ? (
-                                    <img src={user.photoURL} alt="User" className="w-full h-full object-cover" />
-                                ) : (
-                                    <UserIcon className="w-5 h-5 text-slate-300" />
-                                )}
-                            </div>
-                            <button 
-                                onClick={() => logout()}
-                                className="p-2 hover:bg-red-50 text-slate-300 hover:text-red-500 rounded-lg transition-all"
-                            >
-                                <LogOut className="w-5 h-5" />
-                            </button>
-                        </div>
+                        <UserProfileDropdown />
                     </div>
                 )}
             </div>

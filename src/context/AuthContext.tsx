@@ -22,6 +22,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  sendVerificationEmail: () => Promise<void>;
   sendOTP: () => Promise<void>;
 }
 
@@ -33,6 +34,7 @@ const AuthContext = createContext<AuthContextType>({
   logout: async () => {},
   signInWithGoogle: async () => {},
   refreshUser: async () => {},
+  sendVerificationEmail: async () => {},
   sendOTP: async () => {},
 });
 
@@ -45,20 +47,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const syncSession = async (user: User | null) => {
     if (user) {
-      const idToken = await user.getIdToken();
-      setToken(idToken);
+      const idTokenResult = await user.getIdTokenResult();
+      setToken(idTokenResult.token);
       
-      // Determine role on client side for instant UI updates
-      if (user.email === "professorshyam123@gmail.com") {
-        setRole("admin");
-      } else {
-        setRole("user");
-      }
+      // Extract Dynamic Role from Custom Claims
+      const userRole = (idTokenResult.claims.role as string)?.toLowerCase();
+      setRole(userRole === 'admin' ? 'admin' : 'user');
 
       await fetch('/api/auth/session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ idToken }),
+        body: JSON.stringify({ idToken: idTokenResult.token }),
       });
     } else {
       setRole("user");
@@ -98,33 +97,40 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const refreshUser = async () => {
     if (auth.currentUser) {
       await auth.currentUser.reload();
-      const idToken = await auth.currentUser.getIdToken(true); 
-      setToken(idToken);
+      const idTokenResult = await auth.currentUser.getIdTokenResult(true); 
+      setToken(idTokenResult.token);
       const updatedUser = auth.currentUser;
       setUser(updatedUser);
       
-      if (updatedUser.email === "professorshyam123@gmail.com") {
-        setRole("admin");
-      } else {
-        setRole("user");
-      }
+      const userRole = (idTokenResult.claims.role as string)?.toLowerCase();
+      setRole(userRole === 'admin' ? 'admin' : 'user');
 
       await fetch('/api/auth/session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ idToken }),
+        body: JSON.stringify({ idToken: idTokenResult.token }),
       });
     }
   };
 
-  const sendOTP = async () => {
+  const sendVerificationEmail = async () => {
     if (auth.currentUser) {
       await sendEmailVerification(auth.currentUser);
     }
   };
 
+  const sendOTP = async () => {
+    if (auth.currentUser && auth.currentUser.email) {
+      await fetch('/api/auth/otp/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: auth.currentUser.email }),
+      });
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, token, role, loading, logout, signInWithGoogle, refreshUser, sendOTP }}>
+    <AuthContext.Provider value={{ user, token, role, loading, logout, signInWithGoogle, refreshUser, sendVerificationEmail, sendOTP }}>
       {children}
     </AuthContext.Provider>
   );

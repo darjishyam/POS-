@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
-
+import { sendLowStockAlert } from '@/lib/nodemailer'
 export async function POST(
     request: Request,
     { params }: { params: Promise<{ id: string }> }
@@ -50,7 +50,6 @@ export async function POST(
                 })
             }
 
-            // 4. Create Purchase Return record
             const purchaseReturn = await tx.purchaseReturn.create({
                 data: {
                     purchaseId,
@@ -60,11 +59,45 @@ export async function POST(
                     items: {
                         create: returnItemsData
                     }
+                },
+                include: {
+                    items: {
+                        include: {
+                            product: true
+                        }
+                    }
                 }
             })
 
             return purchaseReturn
         })
+
+        // 5. Low Stock Alerts (Role-Based)
+        if (result && result.items) {
+            try {
+                const admins = await prisma.user.findMany({
+                    where: { role: 'ADMIN' },
+                    select: { email: true }
+                });
+                const adminEmails = admins.map((a: { email: string }) => a.email);
+
+                if (adminEmails.length > 0) {
+                    for (const item of result.items) {
+                        const product = item.product;
+                        if (product.manageStock && product.stock <= product.alertQuantity) {
+                            await sendLowStockAlert(adminEmails, {
+                                name: product.name,
+                                sku: product.sku,
+                                stock: product.stock,
+                                alertQuantity: product.alertQuantity
+                            });
+                        }
+                    }
+                }
+            } catch (alertError) {
+                console.error('Low Stock Alert failed (non-fatal):', alertError);
+            }
+        }
 
         return NextResponse.json(result)
     } catch (error: any) {

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { 
     ArrowLeftRight, 
     Plus, 
@@ -12,12 +13,11 @@ import {
     Trash2, 
     CheckCircle2, 
     X,
-    LayoutGrid,
-    Navigation,
     ArrowRight,
     Loader2,
-    IndianRupee,
-    Package
+    Package,
+    Clock,
+    ShieldCheck
 } from 'lucide-react'
 import { toast, Toaster } from 'react-hot-toast'
 import { format } from 'date-fns'
@@ -45,7 +45,15 @@ interface Transfer {
     _count: { items: number }
 }
 
+type TransferItemDraft = {
+    productId: string
+    quantity: number
+}
+
 export default function StockTransferClient() {
+    const searchParams = useSearchParams()
+    const fromPurchaseId = searchParams.get('fromPurchaseId')
+
     const [transfers, setTransfers] = useState<Transfer[]>([])
     const [locations, setLocations] = useState<Location[]>([])
     const [products, setProducts] = useState<Product[]>([])
@@ -53,16 +61,104 @@ export default function StockTransferClient() {
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [submitting, setSubmitting] = useState(false)
     const [search, setSearch] = useState('')
+    const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING' | 'APPROVED' | 'COMPLETED' | 'CANCELLED'>('ALL')
 
     // Form states
     const [fromLocationId, setFromLocationId] = useState('')
     const [toLocationId, setToLocationId] = useState('')
     const [referenceNo, setReferenceNo] = useState('')
-    const [items, setItems] = useState<any[]>([{ productId: '', quantity: 1 }])
+    const [items, setItems] = useState<TransferItemDraft[]>([{ productId: '', quantity: 1 }])
 
     useEffect(() => {
         fetchData()
     }, [])
+
+    useEffect(() => {
+        if (!fromPurchaseId) return
+        if (!locations || locations.length === 0) return
+
+        const parsePurchaseItems = (raw: unknown): TransferItemDraft[] => {
+            if (!Array.isArray(raw)) return []
+            const out: TransferItemDraft[] = []
+            for (const entry of raw) {
+                if (!entry || typeof entry !== 'object') continue
+                const obj = entry as Record<string, unknown>
+                const productId = typeof obj.productId === 'string' ? obj.productId : ''
+                const quantityRaw = obj.quantity
+                const quantity = typeof quantityRaw === 'number' || typeof quantityRaw === 'string' ? Number(quantityRaw) : NaN
+                if (!productId || !Number.isFinite(quantity) || quantity <= 0) continue
+                out.push({ productId, quantity })
+            }
+            return out
+        }
+
+        const prefillFromPurchase = async () => {
+            try {
+                const res = await fetch(`/api/purchases/${encodeURIComponent(fromPurchaseId)}`)
+                const purchase: unknown = await res.json()
+                if (!res.ok || purchase?.error) {
+                    const errMsg =
+                        purchase && typeof purchase === 'object' && 'error' in purchase
+                            ? String((purchase as Record<string, unknown>).error)
+                            : undefined
+                    toast.error(errMsg || 'Failed to load purchase')
+                    return
+                }
+
+                const purchaseLocationId =
+                    purchase && typeof purchase === 'object' && 'locationId' in purchase
+                        ? ((purchase as Record<string, unknown>).locationId as string | null | undefined)
+                        : undefined
+                if (!purchaseLocationId) {
+                    toast.error('Purchase has no location. Please set location on purchase before transferring.')
+                    return
+                }
+
+                // From location = where purchase stock was received
+                setFromLocationId(purchaseLocationId)
+
+                // Destination = first STORE that is different from origin (fallback: any other location)
+                const preferredDest =
+                    locations.find(l => l.type === 'STORE' && l.id !== purchaseLocationId) ||
+                    locations.find(l => l.id !== purchaseLocationId)
+                if (preferredDest) setToLocationId(preferredDest.id)
+
+                const ref =
+                    (purchase && typeof purchase === 'object' && 'referenceNumber' in purchase
+                        ? ((purchase as Record<string, unknown>).referenceNumber as string | null | undefined)
+                        : undefined) ||
+                    `PUR-${String(
+                        purchase && typeof purchase === 'object' && 'id' in purchase
+                            ? (purchase as Record<string, unknown>).id
+                            : fromPurchaseId
+                    )
+                        .slice(-8)
+                        .toUpperCase()}`
+                setReferenceNo(ref)
+
+                const rawItems =
+                    purchase && typeof purchase === 'object' && 'items' in purchase
+                        ? (purchase as Record<string, unknown>).items
+                        : undefined
+                const draftItems = parsePurchaseItems(rawItems)
+
+                if (draftItems.length === 0) {
+                    toast.error('Purchase has no transferable items')
+                    return
+                }
+
+                setItems(draftItems)
+                setIsModalOpen(true)
+            } catch (err) {
+                console.error('Prefill from purchase failed:', err)
+                toast.error('Failed to prefill transfer from purchase')
+            }
+        }
+
+        prefillFromPurchase()
+        // run once when locations loaded for the first time
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [fromPurchaseId, locations.length])
 
     const fetchData = async () => {
         try {
@@ -77,25 +173,32 @@ export default function StockTransferClient() {
             setTransfers(Array.isArray(tData) ? tData : [])
             setLocations(Array.isArray(lData) ? lData : [])
             setProducts(Array.isArray(pData) ? pData : [])
-        } catch (error) {
+        } catch (err) {
+            console.error('Failed to sync logistics data:', err)
             toast.error('Failed to sync logistics data')
         } finally {
             setLoading(false)
         }
     }
 
-    const filteredTransfers = (transfers || []).filter(t => 
-        (t.fromLocation?.name || '').toLowerCase().includes(search.toLowerCase()) || 
-        (t.toLocation?.name || '').toLowerCase().includes(search.toLowerCase()) ||
-        (t.referenceNo || '').toLowerCase().includes(search.toLowerCase())
-    )
+    const filteredTransfers = (transfers || []).filter(t => {
+        const matchesSearch =
+            (t.fromLocation?.name || '').toLowerCase().includes(search.toLowerCase()) ||
+            (t.toLocation?.name || '').toLowerCase().includes(search.toLowerCase()) ||
+            (t.referenceNo || '').toLowerCase().includes(search.toLowerCase())
+
+        const matchesStatus = statusFilter === 'ALL' ? true : t.status === statusFilter
+        return matchesSearch && matchesStatus
+    })
 
     const addItem = () => setItems([...items, { productId: '', quantity: 1 }])
     const removeItem = (index: number) => setItems(items.filter((_, i) => i !== index))
-    const updateItem = (index: number, field: string, value: any) => {
-        const newItems = [...items]
-        newItems[index][field] = value
-        setItems(newItems)
+    const updateItem = <K extends keyof TransferItemDraft>(
+        index: number,
+        field: K,
+        value: TransferItemDraft[K]
+    ) => {
+        setItems(prev => prev.map((it, i) => (i === index ? { ...it, [field]: value } : it)))
     }
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -104,7 +207,7 @@ export default function StockTransferClient() {
         if (items.some(i => !i.productId || i.quantity <= 0)) return toast.error('Invalid payload detected')
 
         setSubmitting(true)
-        const loadingToast = toast.loading('Executing Stock Movement...')
+        const loadingToast = toast.loading('Requesting Stock Movement...')
         try {
             const res = await fetch('/api/stock-transfers', {
                 method: 'POST',
@@ -112,15 +215,36 @@ export default function StockTransferClient() {
                 body: JSON.stringify({ fromLocationId, toLocationId, referenceNo, items })
             })
             if (res.ok) {
-                toast.success('Logistics Movement Authorized', { id: loadingToast })
+                toast.success('Transfer Requested (PENDING)', { id: loadingToast })
                 setIsModalOpen(false)
                 resetForm()
                 fetchData()
             }
-        } catch (error) {
+        } catch {
             toast.error('Movement Authorization Failed', { id: loadingToast })
         } finally {
             setSubmitting(false)
+        }
+    }
+
+    const updateTransferStatus = async (transferId: string, nextStatus: string) => {
+        try {
+            const res = await fetch(`/api/stock-transfers/${transferId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: nextStatus })
+            })
+
+            const data = await res.json().catch(() => ({}))
+            if (!res.ok) {
+                toast.error(data.error || 'Protocol update failed')
+                return
+            }
+
+            toast.success(`Transfer updated to ${nextStatus}`)
+            fetchData()
+        } catch {
+            toast.error('Sync error')
         }
     }
 
@@ -153,7 +277,7 @@ export default function StockTransferClient() {
                         className="bg-[#020617] hover:bg-black text-white px-8 py-5 rounded-3xl font-black text-xs uppercase tracking-widest shadow-xl shadow-emerald-500/10 transition-all active:scale-95 flex items-center gap-3 group border border-emerald-500/20"
                     >
                         <Plus className="w-5 h-5 group-hover:rotate-90 group-hover:text-emerald-400 transition-all duration-500" />
-                        Execute Movement
+                        Request Transfer
                     </button>
                 </div>
 
@@ -171,8 +295,19 @@ export default function StockTransferClient() {
                     </div>
 
                     <div className="flex bg-slate-100/50 p-1.5 rounded-2xl border border-gray-100">
-                        <button className="px-6 py-2.5 rounded-xl bg-white shadow-sm text-[10px] font-black uppercase tracking-widest text-slate-900 border border-gray-100 italic">Global Log</button>
-                        <button className="px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 transition-colors">Transit</button>
+                        {(['ALL', 'PENDING', 'APPROVED', 'COMPLETED'] as const).map(st => (
+                            <button
+                                key={st}
+                                onClick={() => setStatusFilter(st)}
+                                className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors italic ${
+                                    statusFilter === st
+                                        ? 'bg-white shadow-sm text-slate-900 border border-gray-100'
+                                        : 'text-slate-400 hover:text-slate-600'
+                                }`}
+                            >
+                                {st}
+                            </button>
+                        ))}
                     </div>
                 </div>
 
@@ -191,12 +326,13 @@ export default function StockTransferClient() {
                                     <th className="px-8 py-6">Movement Vector</th>
                                     <th className="px-8 py-6 text-center">Payload Vol</th>
                                     <th className="px-8 py-6 text-right">Protocol Status</th>
+                                    <th className="px-8 py-6 text-right">Actions</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-50">
                                 {filteredTransfers.length === 0 ? (
                                     <tr>
-                                        <td colSpan={4} className="p-20 text-center">
+                                        <td colSpan={5} className="p-20 text-center">
                                             <span className="text-xs font-black text-gray-300 uppercase tracking-[0.2em]">Zero Movements Logged</span>
                                         </td>
                                     </tr>
@@ -235,10 +371,45 @@ export default function StockTransferClient() {
                                             </div>
                                         </td>
                                         <td className="px-8 py-6 text-right">
-                                            <span className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-600 rounded-full text-[10px] font-black uppercase tracking-widest border border-emerald-100">
-                                                <CheckCircle2 className="w-3 h-3" />
-                                                {t.status}
-                                            </span>
+                                            {t.status === 'COMPLETED' ? (
+                                                <span className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-600 rounded-full text-[10px] font-black uppercase tracking-widest border border-emerald-100">
+                                                    <CheckCircle2 className="w-3 h-3" />
+                                                    {t.status}
+                                                </span>
+                                            ) : t.status === 'APPROVED' ? (
+                                                <span className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-full text-[10px] font-black uppercase tracking-widest border border-blue-100">
+                                                    <ShieldCheck className="w-3 h-3" />
+                                                    {t.status}
+                                                </span>
+                                            ) : t.status === 'CANCELLED' ? (
+                                                <span className="inline-flex items-center gap-2 px-4 py-2 bg-rose-50 text-rose-600 rounded-full text-[10px] font-black uppercase tracking-widest border border-rose-100">
+                                                    <X className="w-3 h-3" />
+                                                    {t.status}
+                                                </span>
+                                            ) : (
+                                                <span className="inline-flex items-center gap-2 px-4 py-2 bg-amber-50 text-amber-600 rounded-full text-[10px] font-black uppercase tracking-widest border border-amber-100">
+                                                    <Clock className="w-3 h-3" />
+                                                    {t.status}
+                                                </span>
+                                            )}
+                                        </td>
+                                        <td className="px-8 py-6 text-right">
+                                            {t.status === 'PENDING' && (
+                                                <button
+                                                    onClick={() => updateTransferStatus(t.id, 'APPROVED')}
+                                                    className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-[9px] font-black uppercase tracking-widest shadow-lg shadow-blue-500/20 active:scale-95 transition-all"
+                                                >
+                                                    Approve
+                                                </button>
+                                            )}
+                                            {t.status === 'APPROVED' && (
+                                                <button
+                                                    onClick={() => updateTransferStatus(t.id, 'COMPLETED')}
+                                                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-[9px] font-black uppercase tracking-widest shadow-lg shadow-emerald-500/20 active:scale-95 transition-all"
+                                                >
+                                                    Execute
+                                                </button>
+                                            )}
                                         </td>
                                     </tr>
                                 ))}
@@ -382,7 +553,7 @@ export default function StockTransferClient() {
                                         className="bg-emerald-600 hover:bg-emerald-700 text-white px-12 py-5 rounded-[2rem] font-black text-xs uppercase tracking-widest transition-all shadow-xl shadow-emerald-200 active:scale-95 disabled:opacity-50 flex items-center gap-3"
                                     >
                                         {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
-                                        Authorize Movement
+                                        Request Transfer
                                     </button>
                                 </div>
                             </div>
